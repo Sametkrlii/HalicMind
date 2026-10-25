@@ -6,10 +6,10 @@ services:
     environment:
       POSTGRES_DB: halicmind
       POSTGRES_USER: halicmind
-      POSTGRES_PASSWORD: halicmind_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your local .env file}
       TZ: Europe/Istanbul
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - halicmind-postgres-data:/var/lib/postgresql/data
     healthcheck:

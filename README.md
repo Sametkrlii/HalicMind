@@ -24,8 +24,8 @@ Proje kökünde:
 ```sh
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-cp .env.example .env
-docker compose up -d postgres
+.venv/bin/python -m scripts.setup_env
+docker compose up -d --wait postgres
 .venv/bin/python -m scripts.import_catalog
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
@@ -39,8 +39,8 @@ Windows PowerShell için:
 ```powershell
 py -3 -m venv .venv
 .venv\Scripts\python -m pip install -r requirements-dev.txt
-Copy-Item .env.example .env
-docker compose up -d postgres
+.venv\Scripts\python -m scripts.setup_env
+docker compose up -d --wait postgres
 .venv\Scripts\python -m scripts.import_catalog
 ```
 
@@ -52,6 +52,19 @@ docker compose up -d postgres
 ```
 
 Windows’ta FastAPI’yi `.venv\Scripts\uvicorn.exe app.main:app --host 127.0.0.1 --port 8000` ile başlatın. PostgreSQL’i durdurmak için `docker compose stop postgres`, yeniden başlatmak için `docker compose start postgres` kullanın.
+
+`setup_env` her geliştirici için rastgele bir parola üretir ve aynı parolayı `.env` içindeki `POSTGRES_PASSWORD` ile `DATABASE_URL` alanlarına yazar. Mevcut `.env` dosyasının üzerine yazmaz. Boş örnek dosyayı kopyalamak yerine bu komutu kullanın. PostgreSQL portu yalnızca `127.0.0.1:5433` üzerinde yayımlanır. Bu kurulum yerel geliştirme içindir.
+
+### Daha önce Docker kurulumu yaptıysanız
+
+Mevcut Docker volume içindeki parola, `.env` değiştirilince otomatik güncellenmez. Verileri koruyarak değiştirmek için:
+
+1. Çalışan container'a `docker exec -it halicmind-postgres psql -U halicmind -d halicmind` ile girin.
+2. `\password halicmind` çalıştırın ve parola yöneticinizle ürettiğiniz uzun, rastgele, yalnızca harf/rakam içeren yeni parolayı iki kez girin. `\q` ile çıkın.
+3. Yerel `.env` içinde `POSTGRES_PASSWORD` değerini ve `DATABASE_URL` içindeki parola bölümünü aynı yeni parolayla güncelleyin. Parolayı Git'e veya mesajlara eklemeyin.
+4. `docker compose up -d --wait --force-recreate postgres` ile localhost port ayarını uygulayın; FastAPI'yi yeniden başlatın.
+
+Volume'u silmek gerekmez. Eski örnek parola Git geçmişinde bulunsa da yeni kurulumlarda kullanılmaz. Docker henüz kurulmadıysa yukarıdaki yeni kurulum adımlarını izleyin. Homebrew ile oluşturulmuş veritabanı kullanan geliştiriciler mevcut `.env` dosyalarını korumalı; Docker'a geçmeden önce aynı 5433 portunu kullanan yerel sunucuyu durdurmalıdır.
 
 ## API
 
@@ -68,8 +81,8 @@ Ders listesi en fazla 200 kayıt döndürür. Yıllık planlarda `period_kind=ye
 ## Test ve veri doğrulama
 
 ```sh
-.venv/bin/python -m scripts.import_catalog
 .venv/bin/python -m pytest -q
+.venv/bin/python -m scripts.verify_catalog ../HalicMind_Catalog/catalog.sqlite3
 ```
 
 İkinci komut PostgreSQL’deki katalog tablolarını kaynak SQLite veritabanıyla karşılaştırır. Son doğrulama sonucu [`docs/catalog_verification.json`](docs/catalog_verification.json) dosyasındadır.
