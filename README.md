@@ -1,8 +1,24 @@
 # HaliçMind
 
-FastAPI katalog API'si PostgreSQL 17 üzerinden çalışır.
+Haliç Üniversitesi öğrencileri için akademik planlama ve çalışma takibi uygulaması. FastAPI ile geliştirilir ve katalog verilerini PostgreSQL üzerinden sunar.
 
-## macOS kurulumu
+## Proje yapısı
+
+```text
+app/       FastAPI uygulaması ve API uçları
+catalog/   PostgreSQL katalog şeması ve veri aktarım dosyaları
+scripts/   Yerel veritabanı, aktarım ve doğrulama araçları
+tests/     Uygulama testleri
+docs/      Teknik belgeler ve doğrulama raporları
+```
+
+Katalog araştırmasının kaynak çalışma alanı proje dışındaki `HalicMind_Catalog` klasörüdür. Uygulamanın kullandığı PostgreSQL dosyaları bu depodaki `catalog/` klasöründe tutulur.
+
+## Gereksinimler ve kurulum
+
+- macOS
+- Python 3.12 veya üzeri
+- PostgreSQL 17
 
 Proje kökünde:
 
@@ -17,9 +33,7 @@ python3 -m venv .venv
 
 Swagger: http://127.0.0.1:8000/docs — sağlık: http://127.0.0.1:8000/health
 
-Doğrulanan bağımlılık sürümleri `requirements.lock.txt` içindedir (`pip install -r requirements.lock.txt`).
-
-`setup`, `.local/postgres` içinde bağımsız bir PostgreSQL kümesi, superuser olmayan `halicmind` kullanıcısı ve aynı adlı veritabanını oluşturur. TCP yalnızca 127.0.0.1:5433 üzerinde SCRAM parola doğrulamasıyla açılır. Rastgele parola, Git tarafından dışlanan ve yalnızca sahibince okunabilen `.env` dosyasındadır. Kaynak SQLite dosyaları değiştirilmez.
+`setup`, yalnızca bu proje için `.local/postgres` altında yerel bir PostgreSQL kümesi oluşturur. Uygulama kullanıcısı superuser değildir. Bağlantı bilgisi Git’e eklenmeyen `.env` dosyasına yazılır. Sabitlenmiş bağımlılık sürümleri için `requirements.lock.txt` kullanılabilir.
 
 Sonraki açılışlarda:
 
@@ -28,7 +42,7 @@ Sonraki açılışlarda:
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Veritabanını durdurmak veya durumunu görmek için `start` yerine `stop` veya `status` kullanın. Otomatik açılış servisi kurulmaz. PostgreSQL farklı konumdaysa `PG_BIN` ile binary klasörünü belirtin.
+Veritabanını durdurmak için `start` yerine `stop`, durumunu görmek için `status` kullanın.
 
 ## API
 
@@ -42,19 +56,19 @@ GET /api/v1/catalog/courses?q=MAT
 
 Ders listesi en fazla 200 kayıt döndürür. Yıllık planlarda `period_kind=year`, `year_number` dolu ve `semester=null` olur. Kaynak kapsamı ve doğrulama durumları korunur.
 
-## Aktarım ve test
+## Test ve veri doğrulama
 
 ```sh
 .venv/bin/python -m scripts.import_catalog
 .venv/bin/python -m pytest -q
 ```
 
-Tüm kaynak verilerini karşılaştırmak için `.venv/bin/python -m scripts.verify_catalog ../HalicMind_Catalog/catalog.sqlite3` kullanın; son sonuçlar `docs/catalog_verification.json` içindedir.
+İkinci komut PostgreSQL’deki katalog tablolarını kaynak SQLite veritabanıyla karşılaştırır. Son doğrulama sonucu [`docs/catalog_verification.json`](docs/catalog_verification.json) dosyasındadır.
 
 Testler `.env` içindeki PostgreSQL üzerinde salt okunur çalışır. SQL dosyaları `catalog/` içindedir. Aktarım şema, ek tablolar, görünümler, veriler ve identity sayaçlarını tek transaction içinde uygular; hatada geri alır. Advisory lock eşzamanlı aktarımı engeller. `catalog_migrations` SHA-256 kaydı tekrar aktarımı önler; uygulanmış dosyalar değişirse durur. Sonraki şema değişiklikleri yeni migration ile yapılmalıdır. Migration kaydı olmayan dolu veritabanının üzerine yazılmaz.
 
-Başka PostgreSQL sunucusu için `.env.example` dosyasını `.env` olarak kopyalayıp bağlantıyı düzenleyin; boş veritabanı ve şema oluşturma yetkisi olan kullanıcıyı sağlayın. Sonra `scripts.import_catalog` çalıştırın. `local_db` yalnızca yerel kurulum içindir.
+Katalog kapsamı, kaynak sınırlamaları ve doğrulama notları [`catalog/RESEARCH_REPORT.md`](catalog/RESEARCH_REPORT.md) dosyasında açıklanır. Bu sürüm PostgreSQL katalog altyapısını ve katalog API’sini içerir; kimlik doğrulama, kişisel ders planı ve takip modülleri sonraki aşamalardadır.
 
-Katalog, 25 Ekim 2026 tarihli yerel `HalicMind_Catalog` araştırmasından alınmıştır. Kapsam sınırlamaları [araştırma raporunda](catalog/RESEARCH_REPORT.md) kayıtlıdır; tüm kataloglar eksiksiz veya elle doğrulanmış sayılmaz.
+## Lisans
 
-GitHub başlangıç sürümündeki diğer Python modülleri boş iskelettir. Bu çalışma veritabanı ve katalog API'sini uygular; kimlik doğrulama, kişisel ders planı ve takip servisleri henüz uygulanmamıştır.
+MIT
