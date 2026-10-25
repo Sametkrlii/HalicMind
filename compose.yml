@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: halicmind-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: halicmind
+      POSTGRES_USER: halicmind
+      POSTGRES_PASSWORD: halicmind_dev
+      TZ: Europe/Istanbul
+    ports:
+      - "5433:5432"
+    volumes:
+      - halicmind-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U halicmind -d halicmind"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  halicmind-postgres-data:

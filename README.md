@@ -16,33 +16,42 @@ Katalog araştırmasının kaynak çalışma alanı proje dışındaki `HalicMin
 
 ## Gereksinimler ve kurulum
 
-- macOS
 - Python 3.12 veya üzeri
-- PostgreSQL 17
+- Docker Desktop (Windows/macOS/Linux)
 
 Proje kökünde:
 
 ```sh
-brew install postgresql@17
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m scripts.local_db setup
+cp .env.example .env
+docker compose up -d postgres
 .venv/bin/python -m scripts.import_catalog
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 Swagger: http://127.0.0.1:8000/docs — sağlık: http://127.0.0.1:8000/health
 
-`setup`, yalnızca bu proje için `.local/postgres` altında yerel bir PostgreSQL kümesi oluşturur. Uygulama kullanıcısı superuser değildir. Bağlantı bilgisi Git’e eklenmeyen `.env` dosyasına yazılır. Sabitlenmiş bağımlılık sürümleri için `requirements.lock.txt` kullanılabilir.
+Docker Compose, tüm ekipte aynı PostgreSQL 17 ortamını kullanır. Bağlantı bilgisi Git’e eklenmeyen `.env` dosyasına yazılır. Sabitlenmiş bağımlılık sürümleri için `requirements.lock.txt` kullanılabilir.
+
+Windows PowerShell için:
+
+```powershell
+py -3 -m venv .venv
+.venv\Scripts\python -m pip install -r requirements-dev.txt
+Copy-Item .env.example .env
+docker compose up -d postgres
+.venv\Scripts\python -m scripts.import_catalog
+```
 
 Sonraki açılışlarda:
 
 ```sh
-.venv/bin/python -m scripts.local_db start
+docker compose up -d postgres
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Veritabanını durdurmak için `start` yerine `stop`, durumunu görmek için `status` kullanın.
+Windows’ta FastAPI’yi `.venv\Scripts\uvicorn.exe app.main:app --host 127.0.0.1 --port 8000` ile başlatın. PostgreSQL’i durdurmak için `docker compose stop postgres`, yeniden başlatmak için `docker compose start postgres` kullanın.
 
 ## API
 
