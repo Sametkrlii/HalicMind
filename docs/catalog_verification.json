@@ -1,0 +1,20 @@
+{
+  "all_table_values_match": true,
+  "counts": {
+    "academic_units": 11,
+    "programs": 167,
+    "curricula": 167,
+    "courses": 11949,
+    "course_revisions": 11949,
+    "elective_groups": 833,
+    "curriculum_courses": 20351,
+    "prerequisites": 0,
+    "prerequisite_notes": 0,
+    "catalog_source_pages": 167,
+    "catalog_source_rows": 21825,
+    "course_source_details": 11949,
+    "annual_curriculum_courses": 367,
+    "elective_group_courses": 17322,
+    "catalog_courses_readable": 20718
+  }
+}
