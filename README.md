@@ -1,45 +1,55 @@
-# HaliçMind
+# HalicMind
 
-Haliç Üniversitesi öğrencileri için akademik planlama ve çalışma takibi uygulaması. FastAPI ile geliştirilir ve katalog verilerini PostgreSQL üzerinden sunar.
+Haliç Üniversitesi öğrencilerinin bölümüne ve müfredatına uygun dersleri bulmasını, kişisel dönemlerini oluşturmasını ve ders geçmişini tek yerde tutmasını sağlayan web uygulaması.
 
-## Proje yapısı
+Proje, Advanced Computer Programming dersi kapsamında geliştiriliyor. Mevcut sürüm; akademik katalog, kullanıcı kaydı ve e-posta doğrulama, akademik profil, kişisel dönemler ve ders yönetimini kapsar. Ödev, sınav ve çalışma takibi sonraki geliştirme aşamalarıdır.
 
-```text
-app/       FastAPI uygulaması ve API uçları
-catalog/   PostgreSQL katalog şeması ve veri aktarım dosyaları
-scripts/   Yerel veritabanı, aktarım ve doğrulama araçları
-tests/     Uygulama testleri
-docs/      Teknik belgeler ve doğrulama raporları
-```
+> HalicMind'de ders seçmek üniversitenin resmi ders kayıt sisteminde işlem yapmaz. Ders geçmişi ve sonuçları öğrenci tarafından girilir; OBS/SSO veya transkript entegrasyonu bulunmaz.
 
-Katalog araştırmasının kaynak çalışma alanı proje dışındaki `HalicMind_Catalog` klasörüdür. Uygulamanın kullandığı PostgreSQL dosyaları bu depodaki `catalog/` klasöründe tutulur.
+## Mevcut özellikler
 
-## Gereksinimler ve kurulum
+- **Akademik katalog:** Akademik birimler, programlar, müfredatlar ve dersler; program/müfredat filtreleri ve ders araması.
+- **Kayıt ve giriş:** Yalnızca `ogr_no@ogr.halic.edu.tr` biçimindeki öğrenci adresleri, normalize edilmiş benzersiz e-posta, Argon2 parola özeti ve JWT ile kimlik doğrulama.
+- **E-posta doğrulama:** Süreli, tek kullanımlık doğrulama kodu ve yeniden gönderim. Doğrulanmamış hesaplar kişisel modüllere erişemez.
+- **Akademik profil:** Program, müfredat, giriş yılı, sınıf ve hazırlık durumu. Profil değişikliği eski dönemleri silmez.
+- **Kişisel dönemler:** Güz, Bahar, Yaz ve yıllık planlar. Takvim dönemi ile müfredat dönem numarası ayrı tutulur.
+- **Ders önerileri:** Seçilen müfredata göre zorunlu dersler, seçmeli dersler ve gruplar. Öneriler otomatik olarak öğrencinin listesine eklenmez.
+- **Kişisel dersler:** Katalogdan seçim veya yalnızca kullanıcıya özel ders oluşturma; sonuç ve isteğe bağlı not bilgisi; farklı dönemlerde tekrar alma.
+- **Arşivleme:** Listeden çıkarılan ders kalıcı olarak silinmez; geri yüklenebilir. Aynı dönemde yinelenen aktif ders kaydı engellenir.
+- **Kullanıcıya özel erişim:** Her öğrenci yalnızca kendi profilini, dönemlerini ve ders kayıtlarını yönetir.
+- **Web arayüzü:** Mobil ve masaüstü uyumlu kayıt/giriş, profil, genel görünüm, dersler ve dönem geçmişi ekranları.
 
-- Python 3.12 veya üzeri
-- Docker Desktop (Windows/macOS/Linux)
+## Teknolojiler
 
-Proje kökünde:
+| Katman | Kullanılan araçlar |
+| --- | --- |
+| API | Python 3.12+, FastAPI, Pydantic |
+| Veri erişimi | SQLAlchemy 2, psycopg, PostgreSQL 17 |
+| Şema yönetimi | Alembic; katalog için ayrı SQL aktarımı |
+| Kimlik doğrulama | Argon2, PyJWT |
+| Arayüz | HTML, CSS ve JavaScript; FastAPI üzerinden sunulur |
+| Yerel servisler | Docker Compose, Mailpit |
+| Test | pytest, FastAPI TestClient / httpx |
+
+Arayüz için Node.js kurulumu veya frontend derleme adımı gerekmez. Docker Compose yalnızca PostgreSQL ve Mailpit'i başlatır; FastAPI aşağıdaki komutla ayrıca çalıştırılır.
+
+## İlk kurulum
+
+Python 3.12 veya üzeri ile çalışan bir Docker kurulumu gerekir. Tüm komutları `HalicMind` depo kökünde çalıştırın.
+
+### macOS / Linux
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m scripts.setup_env
 docker compose up -d --wait postgres mailpit
 .venv/bin/python -m scripts.import_catalog
 .venv/bin/python -m alembic upgrade head
-.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Öğrenci uygulaması: http://127.0.0.1:8000/ — Swagger: http://127.0.0.1:8000/docs — sağlık: http://127.0.0.1:8000/health
-
-Öğrenci arayüzünde kayıt/giriş, e-posta doğrulama, ilk profil kurulumu, dönem ve ders seçimi, not/sonuç güncelleme ve arşivleme bulunur. Mobil ve masaüstünde çalışır. Arayüz mevcut FastAPI uygulamasından sunulur; ayrıca Node.js kurulumu veya bir frontend derleme komutu gerekmez. Kullanım ve oturum ayrıntıları [`docs/frontend.md`](docs/frontend.md) içindedir.
-
-Docker Compose, tüm ekipte aynı PostgreSQL 17 ortamını kullanır. Bağlantı bilgisi Git’e eklenmeyen `.env` dosyasına yazılır. Sabitlenmiş bağımlılık sürümleri için `requirements.lock.txt` kullanılabilir.
-
-Uygulama adı, süreler ve SMTP ayarları `app/core/config.py`; ortak ders durumu/dönem seçenekleri `app/core/choices.py` içindedir. Kullanım ve değiştirme örnekleri [`docs/configuration.md`](docs/configuration.md) dosyasındadır.
-
-Windows PowerShell için:
+### Windows PowerShell
 
 ```powershell
 py -3 -m venv .venv
@@ -48,91 +58,161 @@ py -3 -m venv .venv
 docker compose up -d --wait postgres mailpit
 .venv\Scripts\python -m scripts.import_catalog
 .venv\Scripts\python -m alembic upgrade head
+.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Sonraki açılışlarda:
+`setup_env`, rastgele bir veritabanı parolası ve bağımsız JWT anahtarıyla yerel `.env` oluşturur; mevcut dosyanın üzerine yazmaz. `.env.example` bir şablondur; boş parola ve anahtarlarla uygulama başlatılamaz. `--reload` yerel geliştirme içindir.
+
+### Uygulamayı açma
+
+| Adres | Amaç |
+| --- | --- |
+| [Öğrenci arayüzü](http://127.0.0.1:8000/) | Uygulamanın kullanımı |
+| [Swagger](http://127.0.0.1:8000/docs) | API istekleri ve şemaları |
+| [Sağlık kontrolü](http://127.0.0.1:8000/health) | Sunucunun yanıtını kontrol etme |
+| [Mailpit](http://127.0.0.1:8025) | Yerel doğrulama e-postalarını görüntüleme |
+
+**Yerel kurulum gerçek okul e-postasına mesaj göndermez.** Doğrulama mesajları Mailpit'te tutulur. Gerçek gönderim için SMTP sağlayıcısı yapılandırılmalıdır.
+
+İlk kullanım akışı: **kayıt → Mailpit'ten doğrulama kodu → e-posta doğrulama → giriş → akademik profil → dönem oluşturma → ders ekleme**. Geçmiş dönemleri doldurmak zorunlu değildir.
+
+Swagger'da korumalı endpoint'ler için önce hesabınızı doğrulayın. **Authorize** penceresinde `username` alanına okul e-postanızı, `password` alanına parolanızı girin; `client_id` ve `client_secret` boş kalır.
+
+### Sonraki açılışlar
 
 ```sh
 docker compose up -d postgres mailpit
-.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Windows’ta FastAPI’yi `.venv\Scripts\uvicorn.exe app.main:app --host 127.0.0.1 --port 8000` ile başlatın. PostgreSQL’i durdurmak için `docker compose stop postgres`, yeniden başlatmak için `docker compose start postgres` kullanın.
+Windows'ta Python yolu `.venv\Scripts\python` olur. FastAPI'yi terminalde `Ctrl+C`, Docker servislerini `docker compose stop` ile durdurabilirsiniz. Normal açılışta katalog aktarımını tekrar çalıştırmanız gerekmez.
 
-`setup_env` her geliştirici için rastgele bir veritabanı parolası ve bağımsız bir JWT imzalama anahtarı üretir. Veritabanı parolası `.env` içindeki `POSTGRES_PASSWORD` ile `DATABASE_URL` alanlarında eşleşir. Mevcut `.env` dosyasının üzerine yazmaz. Boş örnek dosyayı kopyalamak yerine bu komutu kullanın. PostgreSQL ve Mailpit portları yalnızca localhost üzerinde yayımlanır. Bu kurulum yerel geliştirme içindir.
-
-Mevcut kuruluma kimlik doğrulama ayarlarını eklemek için:
+### Mevcut kurulumu güncelleme
 
 ```sh
-.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m scripts.setup_env --add-auth-settings
+docker compose up -d --wait postgres mailpit
 .venv/bin/python -m alembic upgrade head
-docker compose up -d mailpit
 ```
 
-Bu komut mevcut `.env` değerlerini korur ve eksik auth ayarlarını ekler. Ardından FastAPI'yi yeniden başlatın. Mailpit test posta kutusu: http://127.0.0.1:8025. Yerel geliştirmede mesajlar bu kutuda tutulur; gerçek okul e-postalarına iletilmez.
+`--add-auth-settings`, mevcut `.env` değerlerini koruyarak eksik kimlik doğrulama ayarlarını ekler. Ardından FastAPI'yi yeniden başlatın. Windows'ta aynı komutlarda `.venv\Scripts\python` kullanın.
 
-### Daha önce Docker kurulumu yaptıysanız
+## Yapılandırma ve gizli bilgiler
 
-Mevcut Docker volume içindeki parola, `.env` değiştirilince otomatik güncellenmez. Verileri koruyarak değiştirmek için:
+- Uygulama ayarları: `app/core/config.py`. Varsayılan uygulama adı `HalicMind`; `.env` içindeki `APPLICATION_NAME` ile değiştirilebilir.
+- Ortak ders durumu ve dönem seçenekleri: `app/core/choices.py`.
+- Yerel bağlantı: PostgreSQL `127.0.0.1:5433`, SMTP `127.0.0.1:1025`. Docker portları localhost ile sınırlıdır.
+- `.env`, `.venv` ve yerel PostgreSQL çalışma klasörü `.local/`, Git dışında tutulur. Gerçek parolaları, JWT anahtarlarını, kullanıcı verilerini ve veritabanı yedeklerini depoya eklemeyin.
+- Web oturumu HttpOnly cookie kullanır; JWT tarayıcıda `localStorage` içine yazılmaz. Swagger/API istemcileri Bearer token kullanabilir.
 
-1. Çalışan container'a `docker exec -it halicmind-postgres psql -U halicmind -d halicmind` ile girin.
-2. `\password halicmind` çalıştırın ve parola yöneticinizle ürettiğiniz uzun, rastgele, yalnızca harf/rakam içeren yeni parolayı iki kez girin. `\q` ile çıkın.
-3. Yerel `.env` içinde `POSTGRES_PASSWORD` değerini ve `DATABASE_URL` içindeki parola bölümünü aynı yeni parolayla güncelleyin. Parolayı Git'e veya mesajlara eklemeyin.
-4. `docker compose up -d --wait --force-recreate postgres` ile localhost port ayarını uygulayın; FastAPI'yi yeniden başlatın.
+Docker volume içindeki veritabanı parolası, `.env` değişince otomatik güncellenmez. Parola değiştirmek için:
 
-Volume'u silmek gerekmez. Eski örnek parola Git geçmişinde bulunsa da yeni kurulumlarda kullanılmaz. Docker henüz kurulmadıysa yukarıdaki yeni kurulum adımlarını izleyin. Homebrew ile oluşturulmuş veritabanı kullanan geliştiriciler mevcut `.env` dosyalarını korumalı; Docker'a geçmeden önce aynı 5433 portunu kullanan yerel sunucuyu durdurmalıdır.
+1. `docker exec -it halicmind-postgres psql -U halicmind -d halicmind` ile bağlanın.
+2. `\password halicmind` ile uzun, rastgele bir parola belirleyin; `\q` ile çıkın.
+3. `.env` içindeki `POSTGRES_PASSWORD` ile `DATABASE_URL` parola bölümünü eşleştirin. URL içinde özel karakter varsa URL kodlaması gerekir.
+4. `docker compose up -d --wait --force-recreate postgres` çalıştırıp FastAPI'yi yeniden başlatın.
 
-## API
+Bu işlem için volume silmek gerekmez. `docker compose down -v` kalıcı veritabanı volume'unu siler; mevcut verileri korumak istiyorsanız kullanmayın. Git kaydı, veritabanı yedeğinin yerini tutmaz.
 
-```text
-GET /api/v1/catalog/academic-units
-GET /api/v1/catalog/programs?academic_unit_id=4
-GET /api/v1/catalog/curricula?program_id=22
-GET /api/v1/catalog/courses?program_id=22&limit=50&offset=0
-GET /api/v1/catalog/courses?q=MAT
-POST /api/v1/auth/register
-POST /api/v1/auth/resend-verification
-POST /api/v1/auth/verify-email
-POST /api/v1/auth/login
-GET /api/v1/users/me
-```
+Ayarların kullanım ayrıntıları: [Yapılandırma rehberi](docs/configuration.md).
 
-Ders listesi en fazla 200 kayıt döndürür. Yıllık planlarda `period_kind=year`, `year_number` dolu ve `semester=null` olur. Kaynak kapsamı ve doğrulama durumları korunur.
+## API özeti
 
-## Test ve veri doğrulama
+Aşağıdaki yollar `/api/v1` altında sunulur. Tam alanlar ve örnek yanıtlar Swagger'dadır.
+
+| Modül | Başlıca endpoint'ler |
+| --- | --- |
+| Katalog | `GET /catalog/academic-units`, `/catalog/programs`, `/catalog/curricula`, `/catalog/courses` |
+| Hesap | `POST /auth/register`, `/auth/resend-verification`, `/auth/verify-email`, `/auth/login` |
+| Kullanıcı | `GET /users/me` |
+| Akademik profil | `GET`, `PUT /users/me/academic-profile` |
+| Dönemler | `GET`, `POST /terms`; `GET`, `PATCH`, `DELETE /terms/{term_id}` |
+| Ders önerileri | `GET /terms/{term_id}/suggestions` |
+| Kişisel dersler | `GET`, `POST /enrollments`; `GET`, `PATCH`, `DELETE /enrollments/{enrollment_id}` |
+| Geri yükleme | `POST /enrollments/{enrollment_id}/restore` |
+
+Katalog herkese açıktır; kişisel endpoint'ler aktif ve e-postası doğrulanmış hesap gerektirir. Liste endpoint'lerinde `limit` ve `offset` kullanılır; üst sınır 200 kayıttır. Derslerde `DELETE` arşivler. Arşivlenmiş dersleri listelemek için `include_archived=true` kullanılır; ders kaydı bulunan dönemler doğrudan silinemez.
+
+## Veritabanı ve migration'lar
+
+Katalog ile kullanıcı verilerinin şema yönetimi ayrıdır:
+
+- **Katalog:** `catalog/` altındaki SQL dosyaları `scripts.import_catalog` ile aktarılır. Aktarım transaction, advisory lock ve `catalog_migrations` içindeki SHA-256 kayıtlarıyla korunur. Uygulanmış SQL dosyaları değiştirilerek tekrar aktarılmaz.
+- **Uygulama:** Alembic, `DATABASE_URL` üzerinden kullanıcı ve akademik planlama tablolarını yönetir. Uygulama açılışında otomatik tablo oluşturulmaz.
+
+| Revision | Değişiklik |
+| --- | --- |
+| `0001_create_users` | Yalnızca kullanıcı tablosunu ekler |
+| `0002_halic_student_email` | Haliç öğrenci e-postası kısıtını ekler |
+| `0003_auth_verification` | E-posta doğrulama ve ortak deneme sayaçlarını ekler |
+| `0004_academic_planning` | Akademik profil, kişisel dönem ve ders tablolarını ekler |
+
+Katalog aktarımı uygulama migration'larından önce yapılmalıdır. Alembic autogenerate kapsamı `app/db/migrations.py` içindeki altı uygulama tablosuyla sınırlıdır; mevcut katalog tablolarını silinecek tablo olarak değerlendirmemesi için katalog kapsam dışında tutulur. Yeni uygulama tablosu eklenirken izin listesi ve migration birlikte güncellenmelidir.
 
 ```sh
-.venv/bin/python -m pytest -q
-.venv/bin/python -m scripts.verify_catalog ../HalicMind_Catalog/catalog.sqlite3
-```
-
-İkinci komut PostgreSQL’deki katalog tablolarını kaynak SQLite veritabanıyla karşılaştırır. Son doğrulama sonucu [`docs/catalog_verification.json`](docs/catalog_verification.json) dosyasındadır.
-
-Katalog testleri `.env` içindeki PostgreSQL üzerinde salt okunur çalışır. Kullanıcı/migration testleri rastgele adlandırılmış geçici şemalarda çalışır; şema ve test verileri transaction sonunda geri alınır. Test hesabının şema oluşturma yetkisi olmalıdır. SQL dosyaları `catalog/` içindedir. Aktarım şema, ek tablolar, görünümler, veriler ve identity sayaçlarını tek transaction içinde uygular; hatada geri alır. Advisory lock eşzamanlı aktarımı engeller. `catalog_migrations` SHA-256 kaydı tekrar aktarımı önler; uygulanmış dosyalar değişirse durur. Sonraki şema değişiklikleri yeni migration ile yapılmalıdır. Migration kaydı olmayan dolu veritabanının üzerine yazılmaz.
-
-Katalog kapsamı, kaynak sınırlamaları ve doğrulama notları [`catalog/RESEARCH_REPORT.md`](catalog/RESEARCH_REPORT.md) dosyasında açıklanır. Kayıt, e-posta doğrulama ve JWT ile giriş hazırdır. Swagger akışı ve SMTP yapılandırması [`docs/auth.md`](docs/auth.md) içindedir. Akademik profil, kişisel dönemler, katalog önerileri ve ders geçmişi hazırdır; kullanım örnekleri [`docs/academics.md`](docs/academics.md) içindedir. Ödev, sınav ve çalışma takibi sonraki aşamalardadır.
-
-## Uygulama migration'ları
-
-Alembic bağlantıyı `DATABASE_URL` ayarından alır. Mevcut kurulumu güncellemek için:
-
-```sh
-.venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m scripts.setup_env --add-auth-settings
-.venv/bin/python -m alembic upgrade head
 .venv/bin/python -m alembic current
 .venv/bin/python -m alembic check
 ```
 
-İlk revision `0001_create_users`, yalnızca `users` tablosunu ekler. Alembic ayrıca kendi `alembic_version` takip tablosunu oluşturur. Katalog aktarımı `scripts.import_catalog` ve `catalog_migrations` üzerinden bağımsız çalışmaya devam eder; mevcut katalog için Alembic `stamp` işlemi gerekmez. Uygulama başlangıcında otomatik tablo oluşturulmaz.
+## Test ve doğrulama
 
-İkinci revision `0002_halic_student_email`, kullanıcı e-postasını yalnızca rakamlardan oluşan öğrenci numarası ve `@ogr.halic.edu.tr` alan adıyla sınırlar. Model e-postayı normalize eder; veritabanı kısıtı kişisel adresleri ve diğer alan adlarını reddeder. `0003_auth_verification`, `email_verified_at`, tek kullanımlık doğrulama kayıtları ve PostgreSQL üzerinde ortak deneme sayaçları ekler. Önceden var olan hesaplar otomatik doğrulanmaz.
+Çalışan PostgreSQL ve geçerli yerel `.env` ile:
 
-`0004_academic_planning`, `academic_profiles`, `academic_terms` ve `enrollments` tablolarını ekler. Hazırlık ve yıllık planlar desteklenir; geçmiş derslerin girilmesi isteğe bağlıdır. Kişisel dersler ortak kataloğu değiştirmez; listeden çıkarılan ders arşivlenir.
+```sh
+.venv/bin/python -m pytest -q
+```
 
-Autogenerate kapsamı `app/db/migrations.py` içindeki açık izin listesiyle altı uygulama tablosuna sınırlandırılır; katalog tabloları dışarıda kalır. Yeni uygulama tablosu eklerken bu listeyi de güncelleyin; katalog tablolarını eklemeyin. Aday migration'ı uygulamadan önce inceleyin. Kullanıcı alanları, e-posta politikası ve geri alma bilgisi [`docs/database.md`](docs/database.md) içindedir.
+Testler; e-posta politikası, kayıt/giriş, doğrulama, migration kapsamı, kullanıcı sahipliği, akademik profil, dönem ve ders işlemleri ile web oturumu güvenliğini kapsar. Katalog testleri mevcut kataloğu salt okunur kullanır. Veritabanına yazan testler geçici şemalar ve geri alınan transaction'larla çalışır; test veritabanı kullanıcısının şema oluşturma yetkisi gerekir.
+
+Kaynak SQLite kataloğuyla karşılaştırma yapmak için ayrıca kaynak çalışma alanı gerekir:
+
+```sh
+.venv/bin/python -m scripts.verify_catalog ../HalicMind_Catalog/catalog.sqlite3
+```
+
+Bu kaynak klasör normal uygulama kurulumu için gerekli değildir; PostgreSQL aktarım dosyaları depoda bulunur. Son katalog doğrulama raporu: [catalog_verification.json](docs/catalog_verification.json).
+
+## Proje yapısı
+
+```text
+app/
+  api/          Endpoint'ler ve kimlik doğrulama bağımlılıkları
+  core/         Ayarlar, ortak seçenekler ve güvenlik yardımcıları
+  db/           Bağlantı, Base ve migration kapsamı
+  models/       SQLAlchemy modelleri
+  schemas/      İstek ve yanıt şemaları
+  services/     İş kuralları, katalog önerileri ve e-posta gönderimi
+  web/          HTML, CSS ve JavaScript arayüzü
+alembic/        Uygulama migration'ları
+catalog/        Katalog şeması, verisi ve kaynak araştırması
+scripts/        Kurulum, aktarım ve doğrulama araçları
+tests/          Otomatik testler
+docs/           Teknik belgeler ve arayüz ekran görüntüleri
+```
+
+## Sınırlar ve sonraki adımlar
+
+Mevcut katalogda kaynak kapsamı ve doğrulama durumu programlara göre değişebilir; tüm kayıtlar resmi olarak eksiksiz doğrulanmış kabul edilmemelidir. Kapsam bilgileri önerilerde korunur. Ayrıntılar: [Katalog araştırma raporu](catalog/RESEARCH_REPORT.md).
+
+Planlanan geliştirme sırası:
+
+1. Kişisel derslere bağlı ödevler, teslim tarihleri ve tamamlanma takibi.
+2. Sınav takvimi.
+3. Çalışma süresi kayıtları ve gerçek verilere dayalı özetler.
+4. Teslim tarihi, önem ve iş yüküne göre açıklanabilir önceliklendirme.
+
+Bu modüller henüz kullanıma hazır değildir. Gerçek kullanıcılara açılmadan önce SMTP ile gerçek gönderim, parola sıfırlama, HTTPS dağıtımı ve veritabanı yedekleme/geri yükleme süreci tamamlanmalıdır.
+
+## Belgeler
+
+- [Kimlik doğrulama ve Swagger kullanımı](docs/auth.md)
+- [Akademik profil, dönemler ve dersler](docs/academics.md)
+- [Web arayüzü ve oturum yönetimi](docs/frontend.md)
+- [Ayarlar ve ortak seçenekler](docs/configuration.md)
+- [Veritabanı ve migration ayrıntıları](docs/database.md)
+- [API notları](docs/api.md)
 
 ## Lisans
 
-MIT
+[MIT](LICENSE)
