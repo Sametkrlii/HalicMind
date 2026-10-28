@@ -20,10 +20,12 @@ def curricula(db: DB, program_id: int | None = None):
     return db.execute(text('SELECT * FROM curricula WHERE (CAST(:program AS BIGINT) IS NULL OR program_id = :program) ORDER BY id'), {'program': program_id}).mappings().all()
 
 @router.get('/courses')
-def courses(db: DB, program_id: int | None = None, q: str | None = Query(None, max_length=100), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
+def courses(db: DB, program_id: int | None = None, curriculum_id: int | None = None, q: str | None = Query(None, max_length=100), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
     return db.execute(text("""
         SELECT v.* FROM catalog_courses_readable v
-        WHERE (CAST(:program AS BIGINT) IS NULL OR v.program_id=:program) AND (CAST(:query AS TEXT) IS NULL OR v.course_code ILIKE :query OR v.course_name ILIKE :query)
+        WHERE (CAST(:program AS BIGINT) IS NULL OR v.program_id=:program)
+        AND (CAST(:curriculum AS BIGINT) IS NULL OR v.curriculum_id=:curriculum)
+        AND (CAST(:query AS TEXT) IS NULL OR v.course_code ILIKE :query OR v.course_name ILIKE :query)
         ORDER BY faculty, department, curriculum, period_number, course_code
         LIMIT :limit OFFSET :offset
-    """), {'program': program_id, 'query': f'%{q}%' if q else None, 'limit': limit, 'offset': offset}).mappings().all()
+    """), {'program': program_id, 'curriculum': curriculum_id, 'query': f'%{q}%' if q else None, 'limit': limit, 'offset': offset}).mappings().all()

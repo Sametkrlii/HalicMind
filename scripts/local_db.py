@@ -36,6 +36,8 @@ def setup():
         fd = os.open(env_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, 'w') as f:
             f.write(f'DATABASE_URL=postgresql+psycopg://halicmind:{secrets.token_hex(24)}@127.0.0.1:5433/halicmind\n')
+    from scripts.setup_env import add_auth_settings
+    add_auth_settings(env_file)
     url = make_url(dotenv_values(env_file)['DATABASE_URL'])
     if url.host != '127.0.0.1' or url.port != 5433 or url.database != 'halicmind' or url.username != 'halicmind':
         raise RuntimeError('Local setup requires the local halicmind URL; existing .env was preserved.')
