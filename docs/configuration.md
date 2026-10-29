@@ -39,3 +39,13 @@ Veritabanı CHECK kısıtları, uygulanmış migration'lar ve arayüzün Türkç
 ## Kullanıcı verileri
 
 Ad, e-posta, sınıf, bölüm kimliği, dersler ve notlar her öğrenciye özel model/veritabanı alanlarıdır. Ortak ayar dosyasına taşınmaz. Bu düzenlemenin faydası bakım ve okunabilirliktir; çalışma hızında belirgin bir iyileştirme iddiası yoktur.
+
+## KVKK taslağındaki kimlik bilgileri
+
+`DATA_CONTROLLER_NAME` ve `PRIVACY_CONTACT_EMAIL` isteğe bağlı ayarlardır. Gerçek veri sorumlusu ve çalışır başvuru adresi belirlenmeden değer uydurulmamalıdır. Bu iki alan `/api/v1/ui-config` üzerinden bilgilendirme sayfasında gösterilir; özel anahtar veya parola için kullanılmaz.
+
+Bu alanları doldurmak tek başına KVKK metnini tamamlamaz. Hukuki sebepler, alıcılar/aktarım koşulları, saklama-silme süreleri ve başvuru süreci gerçek yayın ortamına göre ayrıca kesinleştirilmelidir. Mevcut metin taslaktır. Ayrıntılar: [Gizlilik sayfaları](privacy.md).
+
+## Resmi sınav duyuruları
+
+`EXAM_SYNC_ENABLED=true` sunucu açıkken otomatik kontrolü açar. `EXAM_SYNC_INTERVAL_SECONDS=3600` varsayılan saatte bir kontroldür (300–86400). `EXAM_SYNC_CA_BUNDLE` isteğe bağlı güvenilir CA dosya yoludur; boşsa sistem sertifikaları kullanılır. Bu ayarlar tarayıcıya aktarılmaz. Ayrıntılar: [Sınav kaynakları](exams.md).

@@ -102,7 +102,7 @@ def test_suggestions_required_first_groups_filters_and_no_auto_enrollment(academ
     data = response.json()
     assert data['courses'][0]['course_revision_id'] == 100
     assert data['courses'][0]['course_type'] == 'required'
-    assert {course['course_revision_id'] for course in data['courses']} == {100, 101, 106}
+    assert {course['course_revision_id'] for course in data['courses']} == {100, 101}
     assert data['elective_groups'][0]['id'] == 10
     assert data['coverage_status'] == 'partial'
     assert 'sort_order' not in data['courses'][0]
@@ -216,3 +216,117 @@ def test_academic_migration_can_rollback_without_touching_catalog_or_users(migra
     assert connection.scalar(text('SELECT count(*) FROM course_revisions')) == 7
     command.upgrade(config, 'head')
     command.check(config)
+
+
+def test_current_preparation_term_inferred_and_transition_preserves_history(academic_app):
+    from app.services.academics import current_academic_year
+    env = academic_app
+    year = current_academic_year()
+    assert profile(env, current_class=0, preparation_status='in_progress').status_code == 200
+    inferred = env.client.post('/api/v1/terms', json={'academic_year': year, 'term_type': 'fall'})
+    assert inferred.status_code == 201
+    prep = inferred.json()
+    assert prep['is_preparation'] is True and prep['curriculum_period_number'] is None
+    # A contradictory explicit current term is rejected, not silently converted.
+    response = env.client.post('/api/v1/terms', json={**TERM, 'academic_year': year, 'is_preparation': False})
+    assert response.status_code == 422 and 'Hazırlık' in response.json()['detail']
+    # Historical terms remain independent of today's profile.
+    historical = env.client.post('/api/v1/terms', json={**TERM, 'academic_year': year-1, 'is_preparation': False})
+    assert historical.status_code == 201 and historical.json()['is_preparation'] is False
+    # Completing preparation unlocks department terms; the old prep record survives.
+    assert profile(env, current_class=1, preparation_status='completed').status_code == 200
+    regular = env.client.post('/api/v1/terms', json={**TERM, 'academic_year': year})
+    assert regular.status_code == 201 and regular.json()['is_preparation'] is False
+    stored = env.client.get(f"/api/v1/terms/{prep['id']}").json()
+    assert stored['is_preparation'] is True
+    assert enroll(env, prep['id']).status_code == 422
+
+
+def test_curriculum_plan_metadata_includes_unknown_and_annual(academic_app):
+    env = academic_app
+    rows = env.client.get('/api/v1/catalog/curricula').json()
+    assert next(c for c in rows if c['id'] == 22)['period_kinds'] == ['semester']
+    assert next(c for c in rows if c['id'] == 42)['period_kinds'] == ['year']
+    env.connection.execute(text('DELETE FROM curriculum_courses WHERE curriculum_id=23'))
+    rows = env.client.get('/api/v1/catalog/curricula', params={'program_id':23}).json()
+    assert rows[0]['period_kinds'] == []
+
+
+def test_suggestions_show_real_electives_instead_of_group_placeholder(academic_app):
+    env = academic_app
+    first = term(env)
+    data = env.client.get(f"/api/v1/terms/{first['id']}/suggestions").json()
+    ids = [c['course_revision_id'] for c in data['courses']]
+    assert ids == [100,101]
+    assert data['courses'][1]['elective_group_id'] == 10
+    assert data['elective_groups'][0]['required_course_count'] == 1
+    assert 106 not in ids  # Placeholder is represented by its elective group.
+    assert 104 not in ids  # Semester 3 is not suggested for semester 1.
+    assert 102 not in ids  # Another program's identically named course is excluded.
+
+
+
+def test_all_period_search_includes_elective_pool_members_and_is_owned(academic_app):
+    env = academic_app
+    first = term(env)
+    url = f"/api/v1/terms/{first['id']}/suggestions"
+    response = env.client.get(url, params={'all_periods':True})
+    assert response.status_code == 200
+    data = response.json()
+    assert data['period_kind'] is None and data['period_number'] is None
+    assert {c['course_revision_id'] for c in data['courses']} == {100,101,104,105}
+    assert env.client.get(url,params={'all_periods':True,'q':'SEC101'}).json()['courses'][0]['course_revision_id'] == 101
+    assert env.client.get(url,params={'all_periods':True},headers=env.other_headers).status_code == 404
+
+
+
+def test_inferred_preparation_with_degree_period_is_validation_error(academic_app):
+    from app.services.academics import current_academic_year
+    env = academic_app
+    assert profile(env,current_class=0,preparation_status='in_progress').status_code == 200
+    response = env.client.post('/api/v1/terms',json={**TERM,'academic_year':current_academic_year()})
+    assert response.status_code == 422
+
+
+def test_elective_group_slot_cannot_be_enrolled_as_a_real_course(academic_app):
+    first = term(academic_app)
+    assert enroll(academic_app,first['id'],course_revision_id=106).status_code == 422
+    assert enroll(academic_app,first['id'],course_revision_id=101).status_code == 201
+
+
+
+def test_elective_membership_survives_missing_period_slot(academic_app):
+    env = academic_app
+    first = term(env)
+    # A pool member can have a period without its own matching slot placement.
+    env.connection.execute(text('INSERT INTO elective_group_courses VALUES (10,101,2)'))
+    response = env.client.get(f"/api/v1/terms/{first['id']}/suggestions",params={'period_kind':'semester','period_number':2})
+    assert response.status_code == 200
+    assert 101 in {c['course_revision_id'] for c in response.json()['courses']}
+    assert response.json()['elective_groups'][0]['id'] == 10
+    # A group with no placement at all follows the curriculum's single known kind.
+    env.connection.execute(text('DELETE FROM curriculum_courses WHERE course_revision_id=106'))
+    response = env.client.get(f"/api/v1/terms/{first['id']}/suggestions",params={'period_kind':'semester','period_number':2})
+    assert 101 in {c['course_revision_id'] for c in response.json()['courses']}
+
+
+
+@pytest.mark.parametrize('status',['in_progress','withdrawn'])
+def test_unfinished_or_withdrawn_course_rejects_grade(academic_app,status):
+    env = academic_app
+    first = term(env)
+    assert enroll(env,first['id'],status=status,grade='BA').status_code == 422
+    course = enroll(env,first['id'],status=status).json()
+    assert env.client.patch(f"/api/v1/enrollments/{course['id']}",json={'grade':'85'}).status_code == 422
+
+
+def test_reopening_completed_course_clears_final_grade(academic_app):
+    env = academic_app
+    first = term(env)
+    course = enroll(env,first['id'],status='passed',grade='BA').json()
+    response = env.client.patch(f"/api/v1/enrollments/{course['id']}",json={'status':'in_progress'})
+    assert response.status_code == 200 and response.json()['grade'] is None
+    response = env.client.patch(f"/api/v1/enrollments/{course['id']}",json={'status':'failed','grade':'FF'})
+    assert response.status_code == 200 and response.json()['grade'] == 'FF'
+    response = env.client.patch(f"/api/v1/enrollments/{course['id']}",json={'status':'withdrawn'})
+    assert response.status_code == 200 and response.json()['grade'] is None

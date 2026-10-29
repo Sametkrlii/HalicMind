@@ -1,4 +1,7 @@
 """Personal academic setup and catalog-aware validation."""
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import select, text
@@ -78,10 +81,40 @@ def owned_term(db: Session, user_id: int, term_id: int, lock=False):
     return term
 
 
+def current_academic_year():
+    try:
+        zone = ZoneInfo('Europe/Istanbul')
+    except ZoneInfoNotFoundError:
+        # Python on Windows may lack an IANA database; current Turkish time is UTC+3.
+        zone = timezone(timedelta(hours=3))
+    today = datetime.now(zone)
+    return today.year - (today.month < 9)
+
+
+def validate_preparation_profile(db: Session, user_id: int, data: TermCreate):
+    profile = db.get(AcademicProfile, user_id)
+    # Historical transfer records and future plans remain possible. The current
+    # term must agree with the student's current preparation status.
+    if (profile and profile.preparation_status == 'in_progress'
+            and data.program_id == profile.program_id
+            and data.academic_year == current_academic_year() and not data.is_preparation):
+        raise HTTPException(422, 'Hazırlık eğitiminiz devam ediyor. Güncel dönemi hazırlık olarak oluşturun; '
+                                'bölüme başladıysanız önce profilinizde hazırlık durumunu ve sınıfınızı güncelleyin.')
+
+
 def create_term(db: Session, user_id: int, data: TermCreate):
     if data.program_id is None:
         profile = get_profile(db, user_id)
         data = data.model_copy(update={'program_id': profile.program_id, 'curriculum_id': profile.curriculum_id})
+    if 'is_preparation' not in data.model_fields_set:
+        profile = db.get(AcademicProfile, user_id)
+        if (profile and profile.preparation_status == 'in_progress'
+                and data.program_id == profile.program_id and data.academic_year == current_academic_year()):
+            # Infer only the current term, never silently rewrite a historical term.
+            if data.curriculum_period_kind is not None:
+                raise HTTPException(422, 'Hazırlık devam ederken güncel döneme bölüm müfredatı bağlanamaz.')
+            data = TermCreate.model_validate({**data.model_dump(), 'is_preparation': True})
+    validate_preparation_profile(db, user_id, data)
     validate_period(db, data)
     term = AcademicTerm(user_id=user_id, **data.model_dump())
     db.add(term)
@@ -98,6 +131,7 @@ def update_term(db: Session, user_id: int, term_id: int, data: TermUpdate):
         merged = TermCreate.model_validate(current)
     except ValidationError:
         raise HTTPException(422, 'Dönem alanları geçersiz; tür ve numarayı birlikte kontrol edin.') from None
+    validate_preparation_profile(db, user_id, merged)
     validate_period(db, merged)
     for name, value in data.model_dump(exclude_unset=True).items():
         setattr(term, name, value)

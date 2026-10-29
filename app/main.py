@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
@@ -14,8 +15,16 @@ from app.core.config import settings
 
 @asynccontextmanager
 async def lifespan(app):
-    yield
-    engine.dispose()
+    from app.services.exam_worker import poll
+    stop=asyncio.Event()
+    worker=asyncio.create_task(poll(stop)) if settings.exam_sync_enabled else None
+    try:
+        yield
+    finally:
+        stop.set()
+        if worker:
+            await worker
+        engine.dispose()
 
 app = FastAPI(title=settings.application_name, lifespan=lifespan)
 app.include_router(router, prefix='/api/v1')
@@ -32,6 +41,8 @@ def student_interface():
 def ui_config():
     return {
         'application_name': settings.application_name,
+        'data_controller_name': settings.data_controller_name,
+        'privacy_contact_email': settings.privacy_contact_email,
         'local_mailbox': settings.smtp_host in {'127.0.0.1', 'localhost'} and settings.smtp_port == 1025,
         'verification_expire_minutes': settings.email_verification_expire_minutes,
     }

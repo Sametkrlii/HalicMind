@@ -41,5 +41,5 @@ def delete(term_id: int, user: CurrentUser, db: DB):
 @router.get('/{term_id}/suggestions', response_model=CourseSuggestions)
 def suggestions(term_id: int, user: CurrentUser, db: DB, period_kind: PeriodKind | None = None,
                 period_number: int | None = Query(None, ge=1, le=24), q: str | None = Query(None, max_length=100),
-                limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):
-    return course_suggestions.suggestions(db, user.id, term_id, period_kind, period_number, q, limit, offset)
+                limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), all_periods: bool = False):
+    return course_suggestions.suggestions(db, user.id, term_id, period_kind, period_number, q, limit, offset, all_periods)

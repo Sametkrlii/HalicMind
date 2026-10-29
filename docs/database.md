@@ -73,7 +73,7 @@ Mevcut hesapların doğrulama tarihi `NULL` kalır; `is_active` yönetimsel eri�
 
 `alembic.ini` bağlantı bilgisi içermez; `alembic/env.py` mevcut `Settings` üzerinden `.env` / ortam değişkenlerini okur. `0001_create_users` yalnızca kullanıcı tablosunu ekler; `alembic_version` Alembic tarafından oluşturulur. Katalog SQL dosyaları ve `catalog_migrations` kaydı değiştirilmez.
 
-`app/db/migrations.py` içindeki `MANAGED_TABLES` izin listesi (`users`, `email_verifications`, `auth_rate_limits`, `academic_profiles`, `academic_terms`, `enrollments`) iki noktada uygulanır: `include_name` katalog tablolarının reflection aşamasına alınmasını engeller, `include_object` ise yanlışlıkla metadata'ya eklenen katalog modellerini de dışlar. Yeni uygulama tabloları için izin listesi bilinçli olarak genişletilmelidir. Bu filtre autogenerate içindir; elle yazılan migration'lar yine incelenmelidir.
+`app/db/migrations.py` içindeki `MANAGED_TABLES` izin listesi (`users`, `email_verifications`, `auth_rate_limits`, `academic_profiles`, `academic_terms`, `enrollments`, `assignments`, `exam_documents`, `exam_sync_state`, `exam_selections`) iki noktada uygulanır: `include_name` katalog tablolarının reflection aşamasına alınmasını engeller, `include_object` ise yanlışlıkla metadata'ya eklenen katalog modellerini de dışlar. Yeni uygulama tabloları için izin listesi bilinçli olarak genişletilmelidir. Bu filtre autogenerate içindir; elle yazılan migration'lar yine incelenmelidir.
 
 `0004_academic_planning`, akademik profil, kişisel dönem ve dönemlik ders tablolarını ekler. Dönemler program/müfredat bilgisini korur. Ders kaydındaki `(term_id,user_id)` bileşik yabancı anahtarı sahipliği veritabanında da denetler. Katalog derslerinin aynı dönemde etkin tekrarını `course_id` üzerinde kısmi benzersiz indeks engeller. Silme yerine arşivleme uygulanır. Ayrıntılı model ve Swagger örnekleri `docs/academics.md` içindedir.
 
@@ -89,3 +89,9 @@ Mevcut hesapların doğrulama tarihi `NULL` kalır; `is_active` yönetimsel eri�
 ```sh
 .venv/bin/python -m pytest -q tests/test_user_migrations.py
 ```
+
+## Ödevler
+
+`0005_assignments`, kişisel derslere bağlı `assignments` tablosunu ekler. `(enrollment_id, user_id)` bileşik yabancı anahtarı başka hesaba ait derse ödev bağlanmasını veritabanında da engeller. Katalog tabloları değişmez. Ödevler silinmek yerine arşivlenir; bağlı dersin arşivlenmesi ödev geçmişini korur. Alanlar ve kullanım: [Ödev rehberi](assignments.md).
+
+`0006_exam_sources`, resmi sınav belge sürümleri, kontrol durumu ve kullanıcıya ait şube seçimlerini ekler. [Sınav entegrasyonu](exams.md).

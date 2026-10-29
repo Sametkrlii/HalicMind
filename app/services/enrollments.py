@@ -46,15 +46,19 @@ def create_enrollment(db: Session, user_id: int, data: EnrollmentCreate):
                    coalesce(d.name_original, r.name_tr, r.name_en) AS course_name, r.ects
             FROM course_revisions r JOIN courses c ON c.id=r.course_id
             LEFT JOIN course_source_details d ON d.course_revision_id=r.id
-            WHERE r.id=:revision AND (
+            WHERE r.id=:revision
+              AND NOT EXISTS (SELECT 1 FROM catalog_source_rows sr
+                              WHERE sr.program_id=:program AND sr.course_code_original=c.course_code
+                                    AND sr.row_kind='slot')
+              AND (
                 EXISTS (SELECT 1 FROM curriculum_courses WHERE curriculum_id=:curriculum AND course_revision_id=r.id)
                 OR EXISTS (SELECT 1 FROM annual_curriculum_courses WHERE curriculum_id=:curriculum AND course_revision_id=r.id)
                 OR EXISTS (SELECT 1 FROM elective_group_courses egc JOIN elective_groups eg ON eg.id=egc.elective_group_id
                            WHERE eg.curriculum_id=:curriculum AND egc.course_revision_id=r.id)
             )
-        '''), {'revision': data.course_revision_id, 'curriculum': term.curriculum_id}).mappings().one_or_none()
+        '''), {'revision': data.course_revision_id, 'curriculum': term.curriculum_id, 'program': term.program_id}).mappings().one_or_none()
         if course is None:
-            raise HTTPException(422, 'Ders revizyonu seçilen dönemin program/müfredatına ait değil.')
+            raise HTTPException(422, 'Ders seçilen ders planında bulunamadı veya bir seçmeli grup başlığı. Grubun içinden gerçek bir ders seçin.')
         values.update(dict(course))
     else:
         values.update(course_id=None, course_revision_id=None, course_code=data.custom_course_code,
@@ -76,6 +80,10 @@ def update_enrollment(db: Session, user_id: int, enrollment_id: int, data: Enrol
     changes = data.model_dump(exclude_unset=True)
     if changes.get('status', row.status) is None:
         raise HTTPException(422, 'Ders durumu boş olamaz.')
+    if changes.get('status', row.status) in {'in_progress', 'withdrawn'}:
+        if changes.get('grade') is not None:
+            raise HTTPException(422, 'Devam eden veya çekilinen derse dönem sonu notu girilemez.')
+        changes['grade'] = None
     custom_fields = {'custom_course_code': 'course_code', 'custom_course_name': 'course_name', 'custom_ects': 'ects'}
     if row.course_id is not None and custom_fields.keys() & changes.keys():
         raise HTTPException(422, 'Katalog dersinin kod, ad ve AKTS kopyası değiştirilemez.')

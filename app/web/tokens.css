@@ -1,1 +1,8 @@
-:root{--canvas:#f7f9f2;--deep:#153e32;--green:#315f43;--lime:#d9ecb0;--ink:#2e3d2e;--muted:#89957e;--line:#e5eadc;--soft:#f0f4e8}
+:root{
+  --canvas:#f3f6f5;--surface:#fff;--deep:#15212a;--green:#216a58;
+  --lime:#e9b95b;--ink:#202c3c;--muted:#637083;--line:#dfe4eb;--soft:#edf6f1;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-8:32px;
+  --font-caption:11px;--font-small:12px;--font-ui:13px;--font-body:14px;--font-title:28px;--font-section:18px;
+  --control-height:44px;--radius-control:8px;--radius-panel:12px;
+  --radius:12px;--shadow:0 8px 28px #18253608;
+}

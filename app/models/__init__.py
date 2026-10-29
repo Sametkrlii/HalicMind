@@ -6,4 +6,8 @@ from app.models.academic_profile import AcademicProfile
 from app.models.academic_term import AcademicTerm
 from app.models.enrollment import Enrollment
 
-__all__ = ['User', 'AuthRateLimit', 'EmailVerification', 'AcademicProfile', 'AcademicTerm', 'Enrollment']
+from app.models.assignment import Assignment
+
+__all__ = ['User', 'AuthRateLimit', 'EmailVerification', 'AcademicProfile', 'AcademicTerm', 'Enrollment', 'Assignment', 'ExamDocument', 'ExamSyncState', 'ExamSelection']
+
+from app.models.exam import ExamDocument, ExamSyncState, ExamSelection

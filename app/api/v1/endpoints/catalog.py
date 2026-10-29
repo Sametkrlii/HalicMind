@@ -17,7 +17,16 @@ def programs(db: DB, academic_unit_id: int | None = None):
 
 @router.get('/curricula')
 def curricula(db: DB, program_id: int | None = None):
-    return db.execute(text('SELECT * FROM curricula WHERE (CAST(:program AS BIGINT) IS NULL OR program_id = :program) ORDER BY id'), {'program': program_id}).mappings().all()
+    return db.execute(text("""
+        WITH plans AS (
+            SELECT curriculum_id, array_agg(DISTINCT period_kind ORDER BY period_kind) AS period_kinds
+            FROM catalog_courses_readable GROUP BY curriculum_id
+        )
+        SELECT c.*, coalesce(p.period_kinds, ARRAY[]::text[]) AS period_kinds
+        FROM curricula c LEFT JOIN plans p ON p.curriculum_id=c.id
+        WHERE (CAST(:program AS BIGINT) IS NULL OR c.program_id=:program)
+        ORDER BY c.id
+    """), {'program': program_id}).mappings().all()
 
 @router.get('/courses')
 def courses(db: DB, program_id: int | None = None, curriculum_id: int | None = None, q: str | None = Query(None, max_length=100), limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0)):

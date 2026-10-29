@@ -1,0 +1,81 @@
+{
+  "academic_year": 2026,
+  "source_url": "https://halic.edu.tr/tr/ogrencimiz/akademik-takvim/2026-2027-akademik-takvim",
+  "checked_on": "2026-10-29",
+  "audience": [
+    "associate",
+    "bachelor"
+  ],
+  "periods": [
+    {
+      "term_type": "fall",
+      "exam_type": "midterm",
+      "label": "Ara sınav",
+      "start_date": "2026-11-07",
+      "end_date": "2026-11-15"
+    },
+    {
+      "term_type": "fall",
+      "exam_type": "makeup",
+      "label": "Mazeret sınavı",
+      "start_date": "2026-11-25",
+      "end_date": "2026-12-02"
+    },
+    {
+      "term_type": "fall",
+      "exam_type": "final",
+      "label": "Final",
+      "start_date": "2026-12-26",
+      "end_date": "2027-01-05"
+    },
+    {
+      "term_type": "fall",
+      "exam_type": "resit",
+      "label": "Bütünleme",
+      "start_date": "2027-01-09",
+      "end_date": "2027-01-17"
+    },
+    {
+      "term_type": "spring",
+      "exam_type": "midterm",
+      "label": "Ara sınav",
+      "start_date": "2027-03-15",
+      "end_date": "2027-03-21"
+    },
+    {
+      "term_type": "spring",
+      "exam_type": "makeup",
+      "label": "Mazeret sınavı",
+      "start_date": "2027-03-30",
+      "end_date": "2027-04-06"
+    },
+    {
+      "term_type": "spring",
+      "exam_type": "final",
+      "label": "Final",
+      "start_date": "2027-05-02",
+      "end_date": "2027-05-11"
+    },
+    {
+      "term_type": "spring",
+      "exam_type": "resit",
+      "label": "Bütünleme",
+      "start_date": "2027-05-24",
+      "end_date": "2027-05-30"
+    },
+    {
+      "term_type": "summer",
+      "exam_type": "midterm",
+      "label": "Ara sınav",
+      "start_date": "2027-08-07",
+      "end_date": "2027-08-15"
+    },
+    {
+      "term_type": "summer",
+      "exam_type": "final",
+      "label": "Final",
+      "start_date": "2027-09-11",
+      "end_date": "2027-09-19"
+    }
+  ]
+}

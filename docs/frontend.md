@@ -24,7 +24,7 @@ docker compose up -d postgres mailpit
 7. **Derslerim:** Dönem ve durum filtreleri, kişisel derslerde ad/kod/AKTS düzenleme, sonuç/not ekleme ve temizleme. Arşivleme onay ekranı vardır; arşivlenenler filtreyle gösterilip aynı kayıt üzerinden geri yüklenir. Başka programların aynı kodlu dersleri birleştirilmez.
 8. **Geçmiş dönemler:** Güncel ve önceki dönemler program bilgisiyle görünür. Geçmişi doldurmak zorunlu değildir. Dönem açıldığında kişisel ders listesine geçilir.
 
-Profil bilgisi değişikliği mevcut dönemleri ve geçmiş dersleri taşımaz veya silmez. Not ortalaması, sınav, ödev ve çalışma takibi bu arayüzün ilk sürümünde yoktur; sayı veya çizelge olarak varmış gibi gösterilmez.
+Profil bilgisi değişikliği mevcut dönemleri ve geçmiş dersleri taşımaz veya silmez. Sınav takibi resmi duyuru kaynaklarıyla desteklenir. Resmi not ortalaması ve çalışma süresi takibi henüz yoktur; bu ölçümler varmış gibi gösterilmez.
 
 ## Oturum ve güvenlik
 
@@ -47,3 +47,66 @@ Uzak ortamda HTTPS kullanın. Bu çalışma yerel FastAPI/PostgreSQL uygulaması
 Web testleri kabuk/statik dosya erişimini, HttpOnly/Secure çerezi, CSRF/origin kontrolünü, çıkışı, pasif/doğrulanmamış hesap engelini, geçersiz Bearer'ın çerezle aşılmamasını ve katalog müfredat filtresini doğrular. Mevcut API testleri de çalışır.
 
 Tarayıcıda ayrı test hesaplarıyla gerçek yerel API ve Mailpit üzerinden kayıt → doğrulama → giriş → profil → dönem → katalogdan ders ekleme → not güncelleme → arşiv/geri yükleme denendi. Geçmiş hazırlık dönemi, kişisel ders, yıllık müfredat, sayfa yenilemede oturum ve çıkış kontrol edildi. 1440 piksel masaüstü ve 390 piksel telefon görünümünde yatay taşma kontrolü yapıldı. Bu kontroller kişisel öğrenci hesabına örnek veri eklemeden yapıldı.
+
+## 28 Ekim 2026: tasarım ve kullanım akışı güncellemesi
+
+Arayüz lacivert, kırık beyaz ve amber tonlarıyla yenilendi. Marka işareti ve Haliç çizimi yerel SVG dosyalarıdır; harici font, izleme betiği veya görsel servisi yüklenmez.
+
+- Profil ve yeni dönem formunda tek bir aranabilir bölüm seçimi bulunur. Türkçe karakterler ve `pc müh`, `bil muh`, `yazılım müh` gibi aramalar desteklenir; yalnızca katalogda bulunan programlar gösterilir. Yukarı/aşağı ok, Enter ve Escape ile kullanılabilir. Fakülte filtresi ayrıca uygulanır.
+- Ders planı etiketi giriş yılı bilgisinin bilinip bilinmediğini açıklar. Plan türü katalogdan alınır; bilinmiyorsa kullanıcı seçer. Bilinmeyen plan sessizce dönemlik kabul edilmez.
+- Hazırlık sürüyorsa sınıf 0 olur. Güncel dönem için hazırlık önerilir; hazırlıkta katalogdaki bölüm dersleri eklenemez. Profil tamamlandı/muaf/yok durumuna geçtiğinde eski hazırlık dönemi korunur ve uygun bölüm dönemi öncelikli açılır.
+- Ders eklemede **Ders planından**, **Tüm planı ara**, **Elle ders ekle** yolları vardır. Seçmeli havuz üyeleri tüm planda aranabilir. Kaynakta `slot` olarak tanımlanan seçmeli grup başlıkları gerçek ders gibi eklenmez; grubun dersleri ayrı ayrı seçilir. Elle eklenen ders ortak kataloğu değiştirmez.
+- Dönem geçmişinde yıl filtresi, tüm dersler, kod, kaynak, AKTS, sonuç, not ve arşiv durumu gösterilir. Toplamlara arşivlenmiş derslerin AKTS'si dahil edilmez. Tekrarlanan dersler farklı dönemlerin kayıtlarıdır; toplamlar mezuniyet AKTS'si veya GPA değildir.
+- Giriş ekranı ve öğrenci alanının altbilgisinden Gizlilik, Çerez politikası, KVKK aydınlatma taslağı ve Kullanım/lisans sayfaları açılır. Oturum açmadan da okunabilir; kayıt formundan erişilebilir.
+
+Masaüstü (1440×1000) ve mobil (390×844) kontrollerinde bölüm araması, klavye seçimi, hazırlık → bölüm geçişi, müfredat araması, 7. dönem seçmeli ders ekleme, not güncelleme, ayrıntılı geçmiş ve yasal sayfa gezinmesi denendi. Mobilde sayfanın yatay taşması yoktur; geniş ders tablosu kendi alanında kaydırılır. Denemeler gerçek kullanıcı hesabından ayrı, yerel Mailpit ile doğrulanmış QA hesabında yapıldı.
+
+Yeni ekranlar: [Genel bakış](screenshots/student-dashboard-v2.jpg), [Dönem geçmişi](screenshots/student-history-v2.jpg), [Mobil](screenshots/student-mobile-v2.jpg). Görüntülerdeki hesap ve ders kayıtları yerel QA verisidir.
+
+### Tek tıkla ders kaldırma
+
+Genel bakıştaki ders satırları, Derslerim kartları ve ders seçim penceresindeki eklenmiş dersler **Kaldır** düğmesi içerir. Ek onay penceresi açılmaz; mevcut `DELETE /enrollments/{id}` işlemiyle kayıt arşivlenir. Sonuç ve not korunur. Bildirimdeki **Geri al** 15 saniye boyunca aynı kaydı geri yükler; daha sonra **Arşivlenenleri göster → Geri yükle** kullanılabilir. Ders seçimi penceresi açıkken bildirim ve geri alma düğmesi pencerenin içinde erişilebilirdir. Escape veya kapatma düğmesiyle pencere kapatıldığında bildirim öğrenci ekranına taşınır.
+
+### Not türü ve listeden seçim
+
+Ders ekleme ve düzenlemede **Harf notu / Sayısal not (0–100)** seçilir. Harf notu için tek bir açılır liste; sayısal not için doğrudan yazılabilen tek bir alan gösterilir. Harf listesi AA, BA, BB, CB, CC, DC, DD, FD, FF önerilerini içerir; daha önce kaydedilmiş farklı bir not varsa korunması için listede ayrıca gösterilir. Sayısal not listesi yoktur. Virgül/nokta ile ondalık giriş kabul edilir; web formunda 0–100 sınırı kontrol edilir. Not türü değiştirilirken formdaki her türün taslağı korunur. Mevcut API ve not kayıt biçimi değişmez; başarı durumu otomatik hesaplanmaz.
+
+### Duruma göre sadeleşen ders sonuç ekranı
+
+Devam eden ders için not bölümü gösterilmez. Başarılı/başarısız derslerde ve varsa tanınmış muafiyet notunda sonuç notu isteğe bağlıdır. Muafiyet ve **Dersten çekildim** seçenekleri ayrı bir açılır bölümde açıklanır. Dersten çekilme, kaydı arşivden kaldırma ile aynı işlem değildir. Devam eden veya çekilinen derse API'den de not gönderilemez (422). Tamamlanmış ders devam ediyor/çekildi durumuna kaydedildiğinde önceki sonuç notu temizlenir. Bu davranış kullanıcıya formda açıklanır. Ders listeleri ve geçmişte de tamamlanmamış dersin eski notu gösterilmez.
+
+Durum seçimi tek satırlı, sekme benzeri bir kontrolle yapılır. Büyük ikonlar, radyo halkaları ve adım numaraları kaldırılmıştır. Not bölümü ayrı kutu yerine ince ayırıcıyla ayrılır; devam ediyor durumunda gizlenir. Masaüstü ve 390 px mobil görünüm kontrol edilmiştir.
+
+## Ortak tasarım ve form davranışları
+
+- `tokens.css`: ortak yazı boyutları, boşluk ölçeği, alan yüksekliği ve köşe ölçüleri. Buton, form alanı, başlık, panel ve pencere ölçüleri bu değişkenleri kullanır.
+- Profil/dönem açıklamaları kısaltıldı. Ders planının ayrıntılı açıklaması gerektiğinde açılabilen **Ders planı nedir?** bölümündedir.
+- **Derslerim**: kart/liste geçişi, ders adı/koduyla anlık arama; ad, doğal kod sırası, azalan AKTS ve son eklenene göre sıralama. Arama durum ve arşiv filtreleriyle birlikte çalışır; dönem dışındaki kayıtları getirmez. Sonuç güncellemesi arama alanının odağını bozmaz. Liste kendi alanında yatay kaydırılır.
+- `forms.js`: akademik profil, dönem, kişisel ders ekleme ve ders düzenleme formlarında anlamlı değişiklikleri takip eder. Parola formları izlenmez; taslaklar localStorage/cookie/veritabanına kaydedilmez.
+- Kaydedilmeden sayfa değiştirme, pencere kapatma, sekme değiştirme veya çıkış için **Düzenlemeye devam et / Kaydetmeden çık** penceresi gösterilir. Düzenlemeye devam edildiğinde girilen değerler korunur. Yenileme/tarayıcıdan ayrılma için tarayıcının yerleşik uyarısı kullanılır.
+- Kaydetme sırasında düğme yükleniyor metni/spinner gösterir; yinelenen gönderim ve kayıt bitmeden gezinme engellenir. Başarılı kayıttan sonra form temiz kabul edilir.
+- HTML alan hataları Türkçe olarak ilgili alanın altında gösterilir. API'nin 422 hataları alan adlarıyla eşleştirilir; ilk hatalı alana odaklanılır. Alanla ilişkilendirilemeyen hatalar form özetinde kalır. `aria-invalid`, `aria-describedby` ve canlı bildirimler kullanılır.
+
+Yerel QA hesabında arama/AKTS sıralaması, kaydetmeden çıkıştan vazgeçme, kayıt sonrası yeniden uyarı çıkmaması, modalden değişiklikleri bırakarak çıkma, boş alan doğrulaması, API'den gelen kod hatası ve mobil arama odağı denendi. Gerçek kullanıcı kayıtları değiştirilmedi. Görsel: [Ders listesi](screenshots/course-list.jpg).
+
+İstemci mantığının bağımlılıksız testleri (isteğe bağlı Node.js geliştirme aracı):
+
+```sh
+node --test tests/test_course_list.mjs tests/test_web_api.mjs
+```
+
+Node.js uygulamayı çalıştırmak için gerekli değildir. Bu testler Türkçe karakter araması, birlikte uygulanan filtreler, sayısal/doğal sıralama ve API alan hatalarını kapsar.
+
+Giriş ekranındaki koordinat, Haliç bölgesi yerine üniversitenin resmi iletişim sayfasına gömülü haritanın konumunu kullanır: 41.085852, 28.952187 (ekranda beş ondalıkla gösterilir). Etiket: 5. Levent Yerleşkesi. Kaynak: https://halic.edu.tr/tr/universitemiz/rektorluk-ofisi/iletisim (29 Ekim 2026). Bu bir kampüs harita referansıdır; ayrı bir bina veya giriş kapısı ölçümü değildir.
+
+## Mobil ve klavye kullanımı
+
+Mobil form alanları 16 px yazı ve en az 44 px dokunma alanları kullanır. Menü açıldığında arka içerik etkileşime kapanır; Tab menü içinde dolaşır, Escape menüyü kapatır. Diyalog kapatılınca odak açan düğmeye döner. Taşan tablolar kendi alanında yatay kayar ve kaydırma açıklaması gösterir. Bunlar erişilebilirlik iyileştirmeleridir; bağımsız bir uygunluk denetimi yapılmış değildir.
+
+## Ödev ekranı
+
+`#/assignments` kişisel derslere ödev ekleme, düzenleme, tamamlama, tekrar açma, arşivleme ve geri alma sunar. Dönem, durum, arama ve sıralama filtreleri bulunur. Ana sayfa seçili dönemin yaklaşan ödevlerini gösterir. Tarihler Türkiye saatiyle (UTC+3) girilir. Tamamlama üniversiteye teslim işlemi yapmaz. Ayrıntılar: [Ödev rehberi](assignments.md).
+
+## Görsel Genel Bakış
+
+Genel Bakış koyu lacivert/antrasit, mint ve sıcak turuncu palet kullanır. SVG sütunlar seçili dönemdeki gelecek 7 günün bekleyen ödev teslimlerini ve kesinleşmiş sınavlarını sayar. Halkalar ödev tamamlanmasını ve kişisel ders sonuçlarını gösterir; mezuniyet oranı değildir. Ders bazında bekleyen ödev sayısı bulunur. Ödevler gün bazında gösterilir; saat ve tahmini süre arayüzden kaldırılmıştır. Arşivler, diğer dönemler ve belirsiz sınav adayları dahil edilmez. Gün sınırı Türkiye saatidir. Çalışma süresi/verimlilik ölçümü üretilmez; boş grafiklerde veri yokluğu açıkça belirtilir. Grafiklere ekran okuyucu açıklamaları ve sayısal etiketler eşlik eder. Diğer işlem sayfaları açık, sade temayı korur.

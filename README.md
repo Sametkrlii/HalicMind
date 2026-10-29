@@ -2,7 +2,7 @@
 
 Haliç Üniversitesi öğrencilerinin bölümüne ve müfredatına uygun dersleri bulmasını, kişisel dönemlerini oluşturmasını ve ders geçmişini tek yerde tutmasını sağlayan web uygulaması.
 
-Proje, Advanced Computer Programming dersi kapsamında geliştiriliyor. Mevcut sürüm; akademik katalog, kullanıcı kaydı ve e-posta doğrulama, akademik profil, kişisel dönemler ve ders yönetimini kapsar. Ödev, sınav ve çalışma takibi sonraki geliştirme aşamalarıdır.
+Proje, Advanced Computer Programming dersi kapsamında geliştiriliyor. Mevcut sürüm; akademik katalog, kullanıcı kaydı ve e-posta doğrulama, akademik profil, kişisel dönemler, ders yönetimi ve derslere bağlı ödev takibini kapsar. Resmi duyurulardan sınav takibi eklenmiştir; çalışma süresi takibi sonraki aşamadır.
 
 > HalicMind'de ders seçmek üniversitenin resmi ders kayıt sisteminde işlem yapmaz. Ders geçmişi ve sonuçları öğrenci tarafından girilir; OBS/SSO veya transkript entegrasyonu bulunmaz.
 
@@ -17,7 +17,9 @@ Proje, Advanced Computer Programming dersi kapsamında geliştiriliyor. Mevcut s
 - **Kişisel dersler:** Katalogdan seçim veya yalnızca kullanıcıya özel ders oluşturma; sonuç ve isteğe bağlı not bilgisi; farklı dönemlerde tekrar alma.
 - **Arşivleme:** Listeden çıkarılan ders kalıcı olarak silinmez; geri yüklenebilir. Aynı dönemde yinelenen aktif ders kaydı engellenir.
 - **Kullanıcıya özel erişim:** Her öğrenci yalnızca kendi profilini, dönemlerini ve ders kayıtlarını yönetir.
-- **Web arayüzü:** Mobil ve masaüstü uyumlu kayıt/giriş, profil, genel görünüm, dersler ve dönem geçmişi ekranları.
+- **Bölüm seçimi:** Tek alanda açılır liste ve Türkçe/kısaltma destekli arama; ders planı türünün katalogdan belirlenmesi.
+- **Gizlilik sayfaları:** Altbilgiden erişilen gizlilik, çerez, KVKK taslağı ve kullanım/lisans bilgileri. Veri sorumlusu bilgileri ve yayın süreçleri henüz tamamlanmamıştır.
+- **Web arayüzü:** Mobil ve masaüstü uyumlu kayıt/giriş, profil, genel görünüm, dersler ve dönem geçmişi. Derslerde kart/liste görünümü, anlık arama ve sıralama; formlarda kaydetmeden çıkış uyarısı, yüklenme ve alan bazlı hata gösterimi.
 
 ## Teknolojiler
 
@@ -130,6 +132,8 @@ Aşağıdaki yollar `/api/v1` altında sunulur. Tam alanlar ve örnek yanıtlar 
 | Dönemler | `GET`, `POST /terms`; `GET`, `PATCH`, `DELETE /terms/{term_id}` |
 | Ders önerileri | `GET /terms/{term_id}/suggestions` |
 | Kişisel dersler | `GET`, `POST /enrollments`; `GET`, `PATCH`, `DELETE /enrollments/{enrollment_id}` |
+| Sınav aralıkları | `GET /exams/calendar` |
+| Ödevler | `GET`, `POST /assignments`; `GET`, `PATCH`, `DELETE /assignments/{assignment_id}`; `POST /assignments/{assignment_id}/restore` |
 | Geri yükleme | `POST /enrollments/{enrollment_id}/restore` |
 
 Katalog herkese açıktır; kişisel endpoint'ler aktif ve e-postası doğrulanmış hesap gerektirir. Liste endpoint'lerinde `limit` ve `offset` kullanılır; üst sınır 200 kayıttır. Derslerde `DELETE` arşivler. Arşivlenmiş dersleri listelemek için `include_archived=true` kullanılır; ders kaydı bulunan dönemler doğrudan silinemez.
@@ -147,8 +151,10 @@ Katalog ile kullanıcı verilerinin şema yönetimi ayrıdır:
 | `0002_halic_student_email` | Haliç öğrenci e-postası kısıtını ekler |
 | `0003_auth_verification` | E-posta doğrulama ve ortak deneme sayaçlarını ekler |
 | `0004_academic_planning` | Akademik profil, kişisel dönem ve ders tablolarını ekler |
+| `0005_assignments` | Derslere bağlı kişisel ödevleri ve sahiplik kısıtını ekler |
+| `0006_exam_sources` | Resmi sınav dosyası sürümleri, kontrol durumu ve kişisel şube seçimi |
 
-Katalog aktarımı uygulama migration'larından önce yapılmalıdır. Alembic autogenerate kapsamı `app/db/migrations.py` içindeki altı uygulama tablosuyla sınırlıdır; mevcut katalog tablolarını silinecek tablo olarak değerlendirmemesi için katalog kapsam dışında tutulur. Yeni uygulama tablosu eklenirken izin listesi ve migration birlikte güncellenmelidir.
+Katalog aktarımı uygulama migration'larından önce yapılmalıdır. Alembic autogenerate kapsamı `app/db/migrations.py` içindeki on uygulama tablosuyla sınırlıdır; mevcut katalog tablolarını silinecek tablo olarak değerlendirmemesi için katalog kapsam dışında tutulur. Yeni uygulama tablosu eklenirken izin listesi ve migration birlikte güncellenmelidir.
 
 ```sh
 .venv/bin/python -m alembic current
@@ -197,21 +203,23 @@ Mevcut katalogda kaynak kapsamı ve doğrulama durumu programlara göre değişe
 
 Planlanan geliştirme sırası:
 
-1. Kişisel derslere bağlı ödevler, teslim tarihleri ve tamamlanma takibi.
-2. Sınav takvimi.
-3. Çalışma süresi kayıtları ve gerçek verilere dayalı özetler.
-4. Teslim tarihi, önem ve iş yüküne göre açıklanabilir önceliklendirme.
+1. Sınav dosyası adaptörlerinin kapsamını ve tarih değişikliği bildirimlerini genişletme (otomatik duyuru kontrolü ve Excel eşleştirmesi mevcut).
+2. Çalışma süresi kayıtları ve gerçek verilere dayalı özetler.
+3. Teslim tarihi, önem ve iş yüküne göre açıklanabilir önceliklendirme.
 
-Bu modüller henüz kullanıma hazır değildir. Gerçek kullanıcılara açılmadan önce SMTP ile gerçek gönderim, parola sıfırlama, HTTPS dağıtımı ve veritabanı yedekleme/geri yükleme süreci tamamlanmalıdır.
+Çalışma oturumları, konu checklist’i, hedef karşılaştırması ve akıllı önceliklendirme henüz uygulanmamıştır. Gerçek kullanıcılara açılmadan önce SMTP ile gerçek gönderim, parola sıfırlama, HTTPS dağıtımı ve veritabanı yedekleme/geri yükleme süreci tamamlanmalıdır.
 
 ## Belgeler
 
 - [Kimlik doğrulama ve Swagger kullanımı](docs/auth.md)
 - [Akademik profil, dönemler ve dersler](docs/academics.md)
+- [Ödev takibi ve API kullanımı](docs/assignments.md)
+- [Sınav takvimi ve kaynak kapsamı](docs/exams.md)
 - [Web arayüzü ve oturum yönetimi](docs/frontend.md)
 - [Ayarlar ve ortak seçenekler](docs/configuration.md)
 - [Veritabanı ve migration ayrıntıları](docs/database.md)
 - [API notları](docs/api.md)
+- [Gizlilik sayfaları ve yayın öncesi eksikler](docs/privacy.md)
 
 ## Lisans
 

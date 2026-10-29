@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 260" fill="none">
+  <g stroke="#8b9fb9" stroke-width="1.2"><path d="M10 210h580M20 225h560M55 241h470" opacity=".35"/><path d="M0 184h35v-30h22v-22h18v52h25v-58h26v58h29v-80h18v-18h12v98h18v-63h33v63h29M433 184h17v-35h20v35h17v-64h18v-25h9v89h23v-47h30v47h33"/><path d="M143 184V45m2 14c100 89 190 89 300 0m0-14v139M145 68c100 89 190 89 300 0M84 184h424v12H84z"/><path d="M175 91v93m30-70v70m30-54v54m30-44v44m30-40v40m30-43v43m30-52v52m30-67v67m30-89v89" opacity=".6"/><path d="M139 45h10m292 0h10M30 210c35-9 52 10 87 0s52 10 87 0 52 10 87 0 52 10 87 0 52 10 87 0 52 10 87 0" opacity=".5"/></g>
+  <circle cx="370" cy="45" r="23" stroke="#e9b95b" stroke-width="1.2"/><path d="M363 45h14m-7-7v14" stroke="#e9b95b" stroke-width="1"/><path d="M27 58h38m-19-19v38" stroke="#8b9fb9" opacity=".4"/>
+  <g fill="#b7c6d9" font-family="monospace" font-size="8" letter-spacing="2"><text x="17" y="255">HALİÇ / İSTANBUL</text><text x="505" y="255">HM—01</text></g>
+</svg>

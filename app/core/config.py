@@ -7,6 +7,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     application_name: str = Field(default='HalicMind', min_length=1, max_length=80)
+    data_controller_name: str | None = Field(default=None, max_length=200)
+    privacy_contact_email: str | None = Field(default=None, max_length=254)
+    exam_sync_enabled: bool = True
+    exam_sync_interval_seconds: int = Field(default=3600, ge=300, le=86400)
+    exam_sync_ca_bundle: str | None = None
     database_url: str
     jwt_secret_key: SecretStr = Field(min_length=32)
     access_token_expire_minutes: int = Field(default=30, ge=1, le=1440)

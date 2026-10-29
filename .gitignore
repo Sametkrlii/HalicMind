@@ -221,3 +221,7 @@ __marimo__/
 
 # Local PostgreSQL cluster and runtime
 .local/
+
+# Private environment variants (keep the sanitized setup template).
+.env.*
+!.env.example

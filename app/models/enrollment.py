@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Identity, Index, Numeric, String, func, text
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint, Identity, Index, Numeric, String, UniqueConstraint, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -10,6 +10,7 @@ from app.db.base import Base
 class Enrollment(Base):
     __tablename__ = 'enrollments'
     __table_args__ = (
+        UniqueConstraint('id', 'user_id', name='uq_enrollments_id_owner'),
         ForeignKeyConstraint(['term_id', 'user_id'], ['academic_terms.id', 'academic_terms.user_id'], ondelete='RESTRICT', name='fk_enrollments_term_owner'),
         CheckConstraint("status IN ('in_progress','passed','failed','withdrawn','exempt')", name='ck_enrollments_status'),
         CheckConstraint('(course_id IS NULL) = (course_revision_id IS NULL)', name='ck_enrollments_catalog_pair'),

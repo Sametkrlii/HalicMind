@@ -9,3 +9,6 @@ CourseStatus = Literal['in_progress', 'passed', 'failed', 'withdrawn', 'exempt']
 TermType = Literal['fall', 'spring', 'summer', 'annual']
 PeriodKind = Literal['semester', 'year']
 PreparationStatus = Literal['not_required', 'in_progress', 'completed', 'exempt']
+
+AssignmentPriority = Literal['low', 'normal', 'high']
+AssignmentStatus = Literal['pending', 'completed']

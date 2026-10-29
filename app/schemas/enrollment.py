@@ -21,6 +21,8 @@ class EnrollmentCreate(BaseModel):
 
     @model_validator(mode='after')
     def valid_source(self):
+        if self.grade is not None and self.status in {'in_progress', 'withdrawn'}:
+            raise ValueError('Devam eden veya çekilinen derse dönem sonu notu girilemez.')
         if self.course_revision_id is not None:
             if any(value is not None for value in (self.custom_course_code, self.custom_course_name, self.custom_ects)):
                 raise ValueError('Katalog dersi ve kişisel ders bilgileri birlikte gönderilemez.')

@@ -2,7 +2,7 @@
 
 # Extend deliberately when adding application tables. Catalog tables and
 # catalog_migrations belong to scripts.import_catalog, even if models are added.
-MANAGED_TABLES = frozenset({'users', 'email_verifications', 'auth_rate_limits', 'academic_profiles', 'academic_terms', 'enrollments'})
+MANAGED_TABLES = frozenset({'users', 'email_verifications', 'auth_rate_limits', 'academic_profiles', 'academic_terms', 'enrollments', 'assignments', 'exam_documents', 'exam_sync_state', 'exam_selections'})
 
 
 def include_name(name, type_, parent_names):

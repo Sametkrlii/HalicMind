@@ -21,7 +21,7 @@ def test_student_shell_assets_and_security_headers():
     assert "script-src 'self'" in response.headers['content-security-policy']
     assert "frame-ancestors 'none'" in response.headers['content-security-policy']
     assert 'unsafe-inline' not in response.headers['content-security-policy']
-    for path in ['/assets/app.js','/assets/api.js','/assets/icons.js','/assets/styles.css','/assets/tokens.css','/assets/favicon.svg']:
+    for path in ['/assets/app.js','/assets/api.js','/assets/icons.js','/assets/styles.css','/assets/tokens.css','/assets/favicon.svg','/assets/legal.js','/assets/halic-lines.svg','/assets/forms.js','/assets/course-list.js','/assets/accessibility.js','/assets/assignment-ui.js']:
         assert client.get(path).status_code==200
     assert client.get('/assets/../core/config.py').status_code==404
     assert client.get('/docs').status_code==200
@@ -89,3 +89,16 @@ def test_https_cookie_is_secure_and_bad_bearer_does_not_fall_back(auth_app):
     assert response.status_code==200 and 'Secure' in response.headers['set-cookie']
     assert env.client.get('https://testserver/api/v1/users/me').status_code==200
     assert env.client.get('https://testserver/api/v1/users/me',headers={'Authorization':'Bearer broken'}).status_code==401
+
+
+
+def test_public_ui_config_only_exposes_public_identity_metadata(monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings,'data_controller_name','Test operator')
+    monkeypatch.setattr(settings,'privacy_contact_email','privacy@example.org')
+    response = TestClient(app).get('/api/v1/ui-config')
+    assert response.status_code == 200
+    data = response.json()
+    assert data['data_controller_name'] == 'Test operator'
+    assert data['privacy_contact_email'] == 'privacy@example.org'
+    assert not {'jwt_secret_key','database_url','smtp_password','smtp_username'} & data.keys()

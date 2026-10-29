@@ -1,0 +1,40 @@
+const dayKey=value=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Istanbul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));
+export function dashboardData(state,now=new Date()){
+  const courses=state.courses.filter(c=>c.term_id===state.termId && !c.archived_at);
+  const assignments=state.assignments.filter(a=>a.term_id===state.termId && !a.archived_at);
+  const completed=assignments.filter(a=>a.status==='completed').length;
+  const pending=assignments.filter(a=>a.status==='pending');
+  const exams=(state.examCalendars.find(c=>c.term_id===state.termId)?.exams||[]).filter(g=>g.status==='confirmed' && g.selected);
+  const events=[...pending.map(a=>({at:a.due_at,title:a.title,code:a.course_code,kind:'assignment',href:'#/assignments'})),...exams.map(g=>({at:g.selected.starts_at,title:g.course_name,code:g.course_code,kind:'exam',href:'#/exams'}))];
+  const today=dayKey(now),days=Array.from({length:7},(_,i)=>{
+    const date=new Date(`${today}T12:00:00+03:00`);date.setTime(date.getTime()+i*86400000);
+    const key=dayKey(date);return {date,key,assignments:events.filter(e=>e.kind==='assignment' && dayKey(e.at)===key).length,exams:events.filter(e=>e.kind==='exam' && dayKey(e.at)===key).length};
+  });
+  return {courses,assignments,completed,pending,exams,days,overdue:pending.filter(a=>dayKey(a.due_at)<today).length,
+    passed:courses.filter(c=>['passed','exempt'].includes(c.status)).length,
+    agenda:events.filter(e=>(e.kind==='assignment'?dayKey(e.at)>=today:new Date(e.at)>=now)).sort((a,b)=>new Date(a.at)-new Date(b.at)).slice(0,5)};
+}
+export function createDashboard({e,icon,termPicker,termLabel,button}){
+  const fmt=(v,options)=>new Intl.DateTimeFormat('tr-TR',{timeZone:'Europe/Istanbul',...options}).format(new Date(v));
+  function ring(value,total,label,color){
+    const ratio=total?value/total:0;
+    return `<div class="dash-ring" role="img" aria-label="${e(label)}: ${value} / ${total}"><svg viewBox="0 0 140 140" aria-hidden="true"><circle cx="70" cy="70" r="56" fill="none" stroke="#303e47" stroke-width="12"/><circle cx="70" cy="70" r="56" fill="none" stroke="${color}" stroke-width="12" pathLength="100" stroke-dasharray="${ratio*100} 100" transform="rotate(-90 70 70)" stroke-linecap="${value?'round':'butt'}"/></svg><div><strong>${total?Math.round(ratio*100)+'%':'—'}</strong><span>${value} / ${total}</span></div></div>`;
+  }
+  function view(state){
+    const d=dashboardData(state),term=state.terms.find(t=>t.id===state.termId),maximum=Math.max(1,...d.days.map(x=>x.assignments+x.exams));
+    const loadMaximum=Math.max(1,...d.courses.map(c=>d.pending.filter(a=>a.enrollment_id===c.id).length));
+    const bars=d.days.map((day,i)=>{
+      const x=48+i*66,a=day.assignments/maximum*132,b=day.exams/maximum*132;
+      return `<g><title>${e(fmt(day.date,{day:'numeric',month:'long'}))}: ${day.assignments} ödev, ${day.exams} sınav</title><rect x="${x}" y="20" width="22" height="132" rx="7" fill="#25343d"/><rect x="${x}" y="${152-a}" width="22" height="${a}" fill="#63d9b3"/><rect x="${x}" y="${152-a-b}" width="22" height="${b}" fill="#ffb16f"/><text x="${x+11}" y="178" text-anchor="middle" fill="#bac9cf" font-size="12">${e(fmt(day.date,{weekday:'short'}))}</text><text x="${x+11}" y="${Math.max(12,144-a-b)}" text-anchor="middle" fill="#e9f1f4" font-size="12">${day.assignments+day.exams||''}</text></g>`;
+    }).join('');
+    return `<div class="dash-heading"><div><span class="eyebrow">${term?e(termLabel(term)):'KİŞİSEL ÇALIŞMA ALANIN'}</span><h1>Merhaba, ${e(state.user.full_name.split(' ')[0])}<span class="dash-wave">.</span></h1><p>Bugünü gör. Önündeki adımı seç.</p></div>${termPicker()}</div>
+    <div class="dash-stats">${[['book',d.courses.length,'Dönemindeki dersler','Kişisel ders listenden'],['check',d.pending.length,'Bekleyen ödevler',`${d.overdue} teslim tarihi geçmiş`],['calendar',d.exams.length,'Eşleşen sınavlar','Resmi dosyadan doğrulanan']].map(([glyph,value,label,note],i)=>`<article class="dash-stat accent-${i}"><span class="dash-stat-icon">${icon(glyph)}</span><span>${label}</span><strong>${value}</strong><small>${e(note)}</small></article>`).join('')}</div>
+    <div class="dash-layout"><section class="dash-panel dash-density"><div class="dash-panel-head"><div><h2>Önündeki 7 gün</h2><p>Teslim ve sınav sayısı · çalışma süresi değil</p></div><span class="dash-live">${fmt(new Date(),{day:'numeric',month:'short'})}</span></div><div class="dash-legend"><span class="mint">Ödev teslimi</span><span class="peach">Kesinleşmiş sınav</span></div><svg class="dash-bars" viewBox="0 0 520 190" role="img" aria-label="Günlük yoğunluk: ${e(d.days.map(day=>fmt(day.date,{weekday:'long'})+' '+day.assignments+' ödev, '+day.exams+' sınav').join('; '))}">${bars}</svg>${d.days.every(day=>!day.assignments&&!day.exams)?'<p class="dash-empty-note">Bu 7 gün için kayıtlı teslim veya kesinleşmiş sınav yok.</p>':''}</section>
+    <section class="dash-panel dash-agenda"><div class="dash-panel-head"><div><h2>Sıradaki işler</h2><p>Seçili dönemin yaklaşan kayıtları</p></div><a href="#/assignments" aria-label="Ödevlerimi aç">${icon('arrow')}</a></div>${d.agenda.length?d.agenda.map(event=>`<a class="dash-event ${event.kind}" href="${event.href}"><div class="dash-event-date"><strong>${fmt(event.at,{day:'numeric',month:'short'})}</strong><span>${event.kind==='exam'?fmt(event.at,{hour:'2-digit',minute:'2-digit'}):'Teslim günü'}</span></div><div><strong>${e(event.title)}</strong><small>${e(event.code)} · ${event.kind==='exam'?'Sınav':'Ödev teslimi'}</small></div>${icon('arrow')}</a>`).join(''):`<div class="dash-empty"><span>${icon('calendar')}</span><h3>Şimdilik takvimin sakin.</h3><p>Dersine bir ödev eklediğinde yaklaşan teslimin burada görünür.</p>${button('new-assignment','Ödev ekle','primary','plus')}</div>`}</section>
+    <section class="dash-panel"><div class="dash-panel-head"><div><h2>Ödev durumu</h2><p>Seçili dönemin arşivlenmemiş ödevleri</p></div><a href="#/assignments">Ödevleri aç ↗</a></div><div class="dash-ring-layout">${ring(d.completed,d.assignments.length,'Tamamlanan ödevler','#63d9b3')}<div class="dash-ring-key"><p><span class="mint">Tamamlandı</span><strong>${d.completed}</strong></p><p><span class="peach">Bekliyor</span><strong>${d.pending.length}</strong></p><small>${d.assignments.length?'Tamamlama, okula teslim işlemi yapmaz.':'Henüz ödev kaydı yok.'}</small></div></div></section>
+    <section class="dash-panel"><div class="dash-panel-head"><div><h2>Ders sonuçların</h2><p>Girdiğin kişisel ders kayıtlarına göre</p></div><a href="#/courses">Dersleri aç ↗</a></div><div class="dash-ring-layout">${ring(d.passed,d.courses.length,'Başarılı veya muaf dersler','#ffbf69')}<div class="dash-ring-key"><p><span class="peach">Başarılı / muaf</span><strong>${d.passed}</strong></p><p><span>Diğer dersler</span><strong>${d.courses.length-d.passed}</strong></p><small>Mezuniyet oranı veya resmi not ortalaması değildir.</small></div></div></section></div>
+    <section class="dash-panel dash-course-load"><div class="dash-panel-head"><div><h2>Derslerine göre bekleyen işler</h2><p>Kişisel derslerindeki ödev dağılımı</p></div><a href="#/courses">Derslerim ↗</a></div>${d.courses.length?d.courses.map(course=>{const tasks=d.pending.filter(a=>a.enrollment_id===course.id);return `<div class="dash-load-row"><div><strong>${e(course.course_name)}</strong><small>${e(course.course_code)}</small></div><svg viewBox="0 0 160 12" preserveAspectRatio="none" role="img" aria-label="${e(course.course_code)}: ${tasks.length} bekleyen ödev"><rect width="160" height="12" rx="6" fill="#30414b"/><rect width="${tasks.length/loadMaximum*160}" height="12" rx="6" fill="#63d9b3"/></svg><span>${tasks.length} ödev</span></div>`;}).join(''):'<p class="dash-empty-note">Ders eklediğinde ders bazında dağılımı burada görebilirsin.</p>'}</section>
+    <div class="dash-bottom"><span>${icon('info')} Grafikler yalnızca kayıtlı verilerini gösterir. Çalışma süresi ve verimlilik henüz ölçülmüyor.</span><a href="#/profile">Akademik profilim ↗</a></div>`;
+  }
+  return {view};
+}

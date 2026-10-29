@@ -99,3 +99,11 @@ Geçmiş dönemleri doldurmak zorunlu değildir. Profil ilk kurulumda oluşturul
 ```
 
 Testler işlem sonunda tamamen geri alınan geçici şemalarda gerçek katalog DDL'si ve küçük örnek veriler kullanır. Hazırlık, yıllık plan, transfer geçmişi, seçmeli üyeleri, yinelenen dersler, arşiv/geri yükleme, doğrudan SQL kısıtları ve kullanıcılar arası erişim sınırları doğrulanır. `0004` downgrade kişisel akademik kayıtları siler; katalog ve kullanıcı hesaplarını korur.
+
+## Güncel hazırlık ve seçmeli ders davranışı
+
+Hazırlık eğitimi devam eden öğrencinin aynı programdaki güncel akademik yılı için oluşturduğu dönem hazırlık olmalıdır. `is_preparation` gönderilmezse sunucu güncel dönem için bunu çıkarır; bölüm dönem numarasıyla çelişen istek 422 döner. Açıkça normal dönem istenirse profilin önce tamamlandı/muaf/hazırlık yok durumuna geçirilmesi gerekir. Geçmiş dönemler ve farklı programlara ait kayıtlar bugünkü hazırlık durumuyla yeniden yorumlanmaz. Mevcut akademik yıl İstanbul saatine göre Eylül başlangıcı kabul edilerek belirlenir; üniversitenin resmi takvim servisine bağlı değildir.
+
+`GET /catalog/curricula` artık `period_kinds` listesi döndürür. Liste boşsa plan türü bilinmiyordur; arayüz kullanıcıdan seçim ister. Yıllık programlar hazırlıkla karıştırılmaz.
+
+`GET /terms/{term_id}/suggestions?all_periods=true&q=...` seçilen kişisel dönemin tüm ders planında arama yapar. Seçmeli grup üyeleri de kapsanır. Varsayılan davranış seçilen dönemle sınırlıdır. Kaynakta `slot` olan seçmeli grup başlıkları ders önerisi/kaydı olarak kullanılmaz; grupların seçim sayısı ve AKTS gereksinimleri ayrıca gösterilir. Katalogda eksik dersler kişisel olarak eklenebilir. Üniversitenin kayıt/mezuniyet koşulları otomatik onaylanmaz.

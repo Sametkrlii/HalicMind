@@ -1,5 +1,5 @@
 const paths = {
-  brand:'<path d="M6 3v18M18 3v18M6 12h12"/>',
+  brand:'<path d="M4 20V4m16 16V4M4 7q8 14 16 0M4 15h16M9 12v8m6-8v8"/>',
   grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   book:'<path d="M12 5c-3-2-6-2-9-1v15c3-1 6-1 9 1 3-2 6-2 9-1V4c-3-1-6-1-9 1Zm0 0v15"/>',
   calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18m-13 4h1m6 0h1m-8 3h1"/>',
@@ -22,6 +22,7 @@ const paths = {
   graduation:'<path d="m2 9 10-5 10 5-10 5L2 9Zm4 2v6c4 3 8 3 12 0v-6m4-2v8"/>',
   chart:'<path d="M4 3v18h17M8 15v3m5-8v8m5-13v13"/>',
   menu:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  refresh:'<path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/>',
   info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10h.01"/>',
 };
 export function icon(name) { return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name] || paths.book}</svg>`; }

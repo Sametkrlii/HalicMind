@@ -57,6 +57,8 @@ def migration_db():
                     (22,100,1,'required',NULL), (22,104,3,'required',NULL), (22,105,2,'required',NULL),
                     (22,106,1,'elective',10), (23,102,1,'required',NULL);
                 INSERT INTO elective_group_courses VALUES (10,101,1);
+                INSERT INTO catalog_source_rows VALUES
+                    (22,1,'semester',1,'SEC1','Seçmeli grup','2+0','3','elective','slot');
                 INSERT INTO annual_curriculum_courses (curriculum_id,course_revision_id,year_number,course_type)
                     VALUES (42,103,1,'required');
             """))
