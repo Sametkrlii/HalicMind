@@ -43,6 +43,7 @@ Python 3.12 veya üzeri ile çalışan bir Docker kurulumu gerekir. Tüm komutla
 
 ```sh
 python3 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m scripts.setup_env
 docker compose up -d --wait postgres mailpit
@@ -55,6 +56,7 @@ docker compose up -d --wait postgres mailpit
 
 ```powershell
 py -3 -m venv .venv
+.venv\Scripts\python -m pip install --upgrade pip
 .venv\Scripts\python -m pip install -r requirements-dev.txt
 .venv\Scripts\python -m scripts.setup_env
 docker compose up -d --wait postgres mailpit
@@ -92,6 +94,7 @@ Windows'ta Python yolu `.venv\Scripts\python` olur. FastAPI'yi terminalde `Ctrl+
 ### Mevcut kurulumu güncelleme
 
 ```sh
+.venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m scripts.setup_env --add-auth-settings
 docker compose up -d --wait postgres mailpit
