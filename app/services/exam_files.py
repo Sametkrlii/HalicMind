@@ -1,4 +1,5 @@
 """Conservative Excel ingestion. Unknown layouts are retained for review, never guessed."""
+from collections import Counter
 import re
 import unicodedata
 from datetime import date, datetime, time, timedelta, timezone
@@ -33,6 +34,8 @@ def announcement_context(title):
         return None
     kinds = [('butunleme','resit'),('mazeret','makeup'),('ara sinav','midterm'),('vize','midterm'),('midterm','midterm'),('final','final')]
     exam = {value for key,value in kinds if key in text}
+    if 'makeup' in exam and len(exam - {'makeup'}) == 1:
+        exam = {'makeup'}
     terms = {value for key,value in [('guz','fall'),('fall','fall'),('bahar','spring'),('spring','spring'),('yaz','summer'),('summer','summer')] if re.search(r'\b'+key+r'\b', text)}
     if len(exam) != 1 or len(terms) != 1 or not any(word in text for word in ('program','takvim','schedule')):
         return None
@@ -121,6 +124,26 @@ def parse_time(value):
     raise ValueError('Sınav saati okunamadı.')
 
 
+# Disjoint from both physical lines and all IDs emitted by the original parser.
+ROW_ID_BASE = 21_000_000
+
+
+def candidate_id(line, part):
+    return ROW_ID_BASE + line * 1000 + part
+
+
+def selectable_rows(rows):
+    """Keep unique legacy IDs. Give both sides of a legacy collision new IDs."""
+    counts = Counter((row['sheet'], row['row']) for row in rows)
+    for row in rows:
+        if counts[row['sheet'], row['row']] > 1:
+            line = row['source_row']
+            part = 0 if row['row'] == line else row['row'] - line * 1000
+            yield {**row, 'row': candidate_id(line, part)}
+        else:
+            yield row
+
+
 def parse_sheet(rows, sheet, context):
     columns = None
     output, warnings = [], []
@@ -159,7 +182,7 @@ def parse_sheet(rows, sheet, context):
                 expanded.append(dict(code=values['code'],name=values['name'],starts_at=at.isoformat(),
                     room=str(cell('room') or '').strip()[:300],program=values['program'][:300],
                     section=values['section'][:100],sheet=sheet,source_row=line,
-                    row=line if count==1 else line*1000+index+1))
+                    row=line if count==1 else candidate_id(line, index+1)))
             output.extend(expanded)
         except (ValueError,TypeError):
             warnings.append(f'{sheet} / satır {line}: alanlar doğrulanamadı.')

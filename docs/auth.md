@@ -2,7 +2,7 @@
 
 Kayıt yalnızca `öğrenci_numarası@ogr.halic.edu.tr` adreslerini kabul eder. Hesap `is_active=true`, `email_verified_at=null` olarak açılır. Doğrulama tamamlanmadan giriş veya korumalı endpoint erişimi verilmez. Katalog endpoint'leri herkese açıktır.
 
-Öğrenciler için bu akış artık http://127.0.0.1:8000/ adresinde arayüz üzerinden de kullanılabilir. Tarayıcı aynı JWT'yi HttpOnly çerezle taşır; Swagger Bearer akışı korunur. Çerezli isteklerin origin/CSRF kontrolü ve çıkış ayrıntıları `frontend.md` içindedir.
+Öğrenciler için bu akış artık http://127.0.0.1:8000/ adresinde arayüz üzerinden de kullanılabilir. Web girişinde yanıt gövdesi yalnızca başarı mesajını içerir. Tarayıcı JWT’yi HttpOnly çerezle taşır. Çerezli isteklerin origin/CSRF kontrolü ve çıkış ayrıntıları `frontend.md` içindedir.
 
 ## Yerel ortam
 
@@ -10,11 +10,12 @@ Kayıt yalnızca `öğrenci_numarası@ogr.halic.edu.tr` adreslerini kabul eder. 
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m scripts.setup_env --add-auth-settings
 docker compose up -d --wait postgres mailpit
+.venv/bin/python -m scripts.import_catalog
 .venv/bin/python -m alembic upgrade head
 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Yeni kurulumda önce README'deki katalog aktarımını yapın. FastAPI zaten çalışıyorsa ayar değişikliklerinden sonra yeniden başlatın. Windows'ta `.venv/bin/python` yerine `.venv\Scripts\python` kullanın.
+FastAPI zaten çalışıyorsa ayar değişikliklerinden sonra yeniden başlatın. Windows'ta `.venv/bin/python` yerine `.venv\Scripts\python` kullanın.
 
 Swagger: http://127.0.0.1:8000/docs. Test posta kutusu: http://127.0.0.1:8025.
 
@@ -22,13 +23,13 @@ Mailpit gerçek okul kutusuna mesaj iletmez. Bu ortam akışı geliştirmek içi
 
 ## Swagger'da adım adım
 
-1. `POST /api/v1/auth/register` için şu JSON'u gönderin. Kendi öğrenci adresinizle test edebilirsiniz; yerel modda mesaj yine Mailpit'e gider.
+1. `POST /api/v1/auth/register` için şu JSON'u gönderin. Parola yer tutucusunu kendi benzersiz parolanızla değiştirin. Sentetik öğrenci adresiyle test edebilirsiniz; yerel modda mesaj yine Mailpit'e gider.
 
    ```json
    {
      "email": "23000000001@ogr.halic.edu.tr",
      "full_name": "Test Öğrenci",
-     "password": "Yerel-Test-Parolasi-123!"
+     "password": "<KENDI_BENZERSIZ_PAROLANIZ>"
    }
    ```
 
@@ -97,14 +98,20 @@ Bu değerler örnektir; gerçek bir sağlayıcı hesabı oluşturmaz. Sağlayıc
 
 `JWT_SECRET_KEY` en az 32 karakterlik özel bir anahtar olmalıdır. Kurulum aracı 32 rastgele bayttan 64 karakterlik bir anahtar üretir ve mevcut değeri korur. Anahtarı değiştirmek mevcut access token'ları geçersiz kılar. Parolalar Argon2id; e-posta kodları 32 rastgele bayttan üretilir, veritabanında SHA-256 özeti tutulur. JWT'de parola veya doğrulama kodu bulunmaz; `sub`, `iat`, `exp`, `iss`, `aud`, `type` doğrulanır.
 
-Refresh token, parola sıfırlama, e-posta değiştirme ve token bazında sunucu tarafı çıkış bu sürümde yoktur. Kullanıcı pasifleştirilirse korumalı endpoint erişimi mevcut JWT ile de kesilir. İleride e-posta değiştirme eklenirse mevcut doğrulama kaldırılmalı ve yeni adres tekrar doğrulanmalıdır.
+Refresh token, e-posta değiştirme ve token bazında sunucu tarafı çıkış bu sürümde yoktur. Kullanıcı pasifleştirilirse korumalı endpoint erişimi mevcut JWT ile de kesilir. İleride e-posta değiştirme eklenirse mevcut doğrulama kaldırılmalı ve yeni adres tekrar doğrulanmalıdır.
 
 ## Test
 
 ```sh
-.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest -q tests/
 .venv/bin/python -m alembic check
 .venv/bin/python -m scripts.smoke_auth
 ```
 
 API testleri geçici PostgreSQL şemalarında çalışır ve tüm verileri geri alır. SMTP birim testleri ağ kullanmaz. Gerçek Mailpit duman testi yerel SMTP teslimini ve gelen kodla doğrulama → giriş → profil akışını ayrıca doğrular; dış okul adreslerine test mesajı gönderilmez.
+
+## Parola kurtarma
+
+Giriş ekranındaki **Parolamı unuttum** eylemi okul e-postasıyla kod ister. Yerel SMTP yapılandırmasında kod Mailpit'e gelir. `POST /api/v1/auth/forgot-password` kabul edilen isteklere aynı mesajı ve yeniden gönderim için bekleme süresini (`retry_after`, saniye) döndürür. SMTP hatası sunucuda kişisel bilgi veya kod içermeyen bir uyarıyla kaydedilir.
+
+`POST /api/v1/auth/reset-password` sıfırlama kodunu (`token`) ve yeni parolayı (`password`) alır. Kodun varsayılan geçerlilik süresi 15 dakikadır ve `PASSWORD_RESET_EXPIRE_MINUTES` ile ayarlanabilir. Başarılı sıfırlama kullanıcıya ait önceki oturumları geçersiz kılar. Mevcut kurulumlar için `.venv/bin/python -m alembic upgrade head` komutuyla `0007_password_reset` migration’ını uygula.

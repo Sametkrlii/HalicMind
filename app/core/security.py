@@ -30,11 +30,15 @@ def hash_verification_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def create_access_token(user_id: int) -> str:
+def hash_reset_token(token: str) -> str:
+    return hashlib.sha256(b'password-reset:' + token.encode()).hexdigest()
+
+
+def create_access_token(user_id: int, session_version: int = 0) -> str:
     now = datetime.now(timezone.utc)
     return jwt.encode(
         {
-            'sub': str(user_id), 'iat': now,
+            'sub': str(user_id), 'iat': now, 'ver': session_version,
             'exp': now + timedelta(minutes=settings.access_token_expire_minutes),
             'iss': JWT_ISSUER, 'aud': JWT_AUDIENCE, 'type': 'access',
         },
@@ -42,7 +46,7 @@ def create_access_token(user_id: int) -> str:
     )
 
 
-def decode_access_token(token: str) -> int:
+def decode_access_token(token: str) -> tuple[int, int]:
     payload = jwt.decode(
         token, settings.jwt_secret_key.get_secret_value(), algorithms=['HS256'],
         issuer=JWT_ISSUER, audience=JWT_AUDIENCE,
@@ -55,4 +59,7 @@ def decode_access_token(token: str) -> int:
         or not 0 < int(subject) <= 9223372036854775807
     ):
         raise jwt.InvalidTokenError('Invalid access token subject or type')
-    return int(subject)
+    version = payload.get('ver', 0)  # Existing sessions predate the version claim.
+    if type(version) is not int or version < 0:
+        raise jwt.InvalidTokenError('Invalid session version')
+    return int(subject), version

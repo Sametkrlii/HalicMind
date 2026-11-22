@@ -31,9 +31,26 @@ export function createAssignmentUI({e,icon,button,termLabel}){
   }
   function cards(items,compact=false){
     if(!items.length)return `<div class="empty-state compact"><div class="empty-icon">${icon('check')}</div><h3>Bu görünümde ödev yok.</h3><p>Filtreyi değiştirebilir veya dersine yeni bir ödev ekleyebilirsin.</p></div>`;
-    return `<div class="assignment-list">${items.map(item=>`<article class="assignment-item ${item.status==='completed'?'is-completed':''} ${item.archived_at?'is-archived':''}"><div class="assignment-main"><div class="assignment-labels"><span class="assignment-course">${e(item.course_code)}</span>${status(item)}${item.course_archived?'<span class="pill gray">Ders arşivde</span>':''}</div><h3>${e(item.title)}</h3>${!compact && item.description?`<p class="assignment-description">${e(item.description)}</p>`:''}<div class="assignment-meta"><span>${icon('calendar')}<time datetime="${e(item.due_at)}">${e(assignmentDeadline(item.due_at))}</time></span><span class="priority-${item.priority}">Önem: ${assignmentPriorities[item.priority]}</span></div>${!compact?`<small class="assignment-course-name">${e(item.course_name)}</small>`:''}</div><div class="assignment-actions">${compact?`<a class="btn light small" href="#/assignments">Aç ${icon('arrow')}</a>`:item.archived_at?button('restore-assignment','Geri yükle','light small','restore',`data-id="${item.id}"`):`${button('toggle-assignment',item.status==='completed'?'Yeniden aç':'Tamamla',item.status==='completed'?'light small':'primary small',item.status==='completed'?'restore':'check',`data-id="${item.id}" aria-label="${e(item.title)}: ${item.status==='completed'?'yeniden aç':'tamamla'}"`)}<button class="icon-btn" data-action="edit-assignment" data-id="${item.id}" aria-label="${e(item.title)} ödevini düzenle">${icon('edit')}</button>${button('archive-assignment','Kaldır','remove-course small','close',`data-id="${item.id}" aria-label="${e(item.title)} ödevini kaldır"`)}`}</div></article>`).join('')}</div>`;
+    return `<div class="assignment-list">${items.map(item=>`<article id="assignment-${item.id}" tabindex="-1" class="assignment-item ${item.status==='completed'?'is-completed':''} ${item.archived_at?'is-archived':''}"><div class="assignment-main"><div class="assignment-labels"><span class="assignment-course">${e(item.course_code)}</span>${status(item)}${item.course_archived?'<span class="pill gray">Ders arşivde</span>':''}</div><h3>${e(item.title)}</h3>${!compact && item.description?`<p class="assignment-description">${e(item.description)}</p>`:''}<div class="assignment-meta"><span>${icon('calendar')}<time datetime="${e(item.due_at)}">${e(assignmentDeadline(item.due_at))}</time></span><span class="priority-${item.priority}">Önem: ${assignmentPriorities[item.priority]}</span></div>${!compact?`<small class="assignment-course-name">${e(item.course_name)}</small>`:''}</div><div class="assignment-actions">${compact?`<a class="btn light small" href="#/assignments">Aç ${icon('arrow')}</a>`:item.archived_at?button('restore-assignment','Geri yükle','light small','restore',`data-id="${item.id}"`):`${button('toggle-assignment',item.status==='completed'?'Yeniden aç':'Tamamla',item.status==='completed'?'light small':'primary small',item.status==='completed'?'restore':'check',`data-id="${item.id}" aria-label="${e(item.title)}: ${item.status==='completed'?'yeniden aç':'tamamla'}"`)}<button class="icon-btn" data-action="edit-assignment" data-id="${item.id}" aria-label="${e(item.title)} ödevini düzenle">${icon('edit')}</button>${button('archive-assignment','Kaldır','remove-course small','close',`data-id="${item.id}" aria-label="${e(item.title)} ödevini kaldır"`)}`}</div></article>`).join('')}</div>`;
   }
-  function results(state){return cards(filterAssignments(state.assignments,{termId:state.assignmentTermId,view:state.assignmentFilter,archives:state.assignmentArchives,query:state.assignmentQuery,sort:state.assignmentSort}));}
+  function results(state) {
+    const rows = filterAssignments(state.assignments,{termId:state.assignmentTermId,view:state.assignmentFilter,
+      archives:state.assignmentArchives,query:state.assignmentQuery,sort:state.assignmentSort});
+    if (!rows.length || state.assignmentSort !== 'due') return cards(rows);
+    const groups = new Map(['Gecikenler','Bugün','Yaklaşanlar','Tamamlananlar','Arşivlenenler'].map(label=>[label,[]]));
+    const today = assignmentDate(new Date());
+    for (const item of rows) {
+      const due = assignmentDate(item.due_at);
+      let group = 'Yaklaşanlar';
+      if (item.archived_at) group = 'Arşivlenenler';
+      else if (item.status === 'completed') group = 'Tamamlananlar';
+      else if (due < today) group = 'Gecikenler';
+      else if (due === today) group = 'Bugün';
+      groups.get(group).push(item);
+    }
+    return [...groups].filter(([,items])=>items.length).map(([label,items])=>
+      `<section class="assignment-group"><h2>${label}</h2>${cards(items)}</section>`).join('');
+  }
   function page(state){
     const scope=state.assignments.filter(item=>!item.archived_at && (!state.assignmentTermId || item.term_id===state.assignmentTermId));
     const count=view=>filterAssignments(scope,{view}).length;

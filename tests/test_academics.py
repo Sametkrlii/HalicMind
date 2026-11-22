@@ -208,12 +208,13 @@ def test_database_owner_and_duplicate_constraints(academic_app):
 
 def test_academic_migration_can_rollback_without_touching_catalog_or_users(migration_db):
     connection, config = migration_db
+    revisions = connection.execute(text('SELECT * FROM course_revisions ORDER BY id')).all()
     command.upgrade(config, 'head')
     owner = connection.scalar(text("INSERT INTO users (email,full_name,hashed_password) VALUES ('23000000001@ogr.halic.edu.tr','Test','hash') RETURNING id"))
     command.downgrade(config, '0003_auth_verification')
     assert 'academic_terms' not in inspect(connection).get_table_names()
     assert connection.scalar(text('SELECT id FROM users')) == owner
-    assert connection.scalar(text('SELECT count(*) FROM course_revisions')) == 7
+    assert connection.execute(text('SELECT * FROM course_revisions ORDER BY id')).all() == revisions
     command.upgrade(config, 'head')
     command.check(config)
 
@@ -330,3 +331,51 @@ def test_reopening_completed_course_clears_final_grade(academic_app):
     assert response.status_code == 200 and response.json()['grade'] == 'FF'
     response = env.client.patch(f"/api/v1/enrollments/{course['id']}",json={'status':'withdrawn'})
     assert response.status_code == 200 and response.json()['grade'] is None
+
+
+def test_shared_electives_search_and_enrollment_use_the_terms_program(academic_app):
+    env = academic_app
+    first = term(env)
+    url = f"/api/v1/terms/{first['id']}/suggestions"
+    search = {'all_periods': True, 'include_university_electives': True}
+    assert not env.client.get(url, params={'q': 'HLU0001'}).json()['courses']
+    by_code = env.client.get(url, params={**search, 'q': 'hlu0001'}).json()['courses']
+    assert len(by_code) == 1
+    writing = by_code[0]
+    assert writing['course_name'] == 'Creative Writing I'
+    assert writing['is_university_elective'] and float(writing['ects']) == 3
+    matches = env.client.get(url, params={**search, 'q': 'creative writing'}).json()['courses']
+    assert {row['course_code'] for row in matches} == {'HLU0001', 'HLU0002'}
+    revision = writing['course_revision_id']
+    assert enroll(env, first['id'], course_revision_id=revision).status_code == 201
+    assert enroll(env, first['id'], course_revision_id=revision).status_code == 409
+    assert env.client.get('/api/v1/enrollments').json()[0]['course_id'] == writing['course_id']
+    second = term(env, academic_year=2025)
+    assert enroll(env, second['id'], course_revision_id=revision).status_code == 201
+    prep = term(env, academic_year=2024, is_preparation=True, curriculum_period_number=None, curriculum_period_kind=None)
+    env.connection.execute(text("UPDATE programs SET degree_level='master' WHERE id=23"))
+    graduate = term(env, academic_year=2023, program_id=23, curriculum_id=23)
+    for parent in (prep, graduate):
+        results = env.client.get(f"/api/v1/terms/{parent['id']}/suggestions", params={**search, 'q':'HLU0001'})
+        assert results.json()['courses'] == []
+        assert enroll(env, parent['id'], course_revision_id=revision).status_code == 422
+
+
+def test_shared_course_already_in_curriculum_keeps_its_local_identity(academic_app):
+    env = academic_app
+    revision = env.connection.scalar(text("""
+        SELECT u.course_revision_id FROM university_electives u
+        JOIN course_revisions r ON r.id=u.course_revision_id
+        JOIN courses c ON c.id=r.course_id WHERE c.course_code='HLU0001'
+    """))
+    env.connection.execute(text("UPDATE courses SET course_code='HLU0001' WHERE id=100"))
+    env.connection.execute(text("UPDATE course_source_details SET name_original='Creative Writing I' WHERE course_revision_id=100"))
+    env.connection.execute(text("UPDATE course_revisions SET ects=3 WHERE id=100"))
+    first = term(env)
+    search = {'all_periods': True, 'include_university_electives': True, 'q':'creative writing i'}
+    rows = env.client.get(f"/api/v1/terms/{first['id']}/suggestions", params=search).json()['courses']
+    writing = [row for row in rows if row['course_code']=='HLU0001']
+    assert len(writing)==1 and writing[0]['course_revision_id']==100
+    assert writing[0]['course_type']=='required'
+    assert enroll(env, first['id'], course_revision_id=100).status_code == 201
+    assert enroll(env, first['id'], course_revision_id=revision).status_code == 422

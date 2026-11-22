@@ -37,7 +37,14 @@ Arayüz için Node.js kurulumu veya frontend derleme adımı gerekmez. Docker Co
 
 ## İlk kurulum
 
-Python 3.12 veya üzeri ile çalışan bir Docker kurulumu gerekir. Tüm komutları `HalicMind` depo kökünde çalıştırın.
+Python 3.12 ve Docker Compose v2 (`--wait` destekli) ile başlayın. Depoyu klonladıktan sonra bütün komutları `compose.yml` dosyasının bulunduğu klasörde çalıştırın.
+
+```sh
+git clone https://github.com/Sametkrlii/HalicMind.git
+cd HalicMind
+```
+
+`requirements-dev.txt` uygulama ve test bağımlılıklarını birlikte kurar. `requirements.lock.txt` denenmiş sürümleri sınırlar. Windows’a özgü ek paketleri pip platforma göre seçer.
 
 ### macOS / Linux
 
@@ -55,14 +62,14 @@ docker compose up -d --wait postgres mailpit
 ### Windows PowerShell
 
 ```powershell
-py -3 -m venv .venv
-.venv\Scripts\python -m pip install --upgrade pip
-.venv\Scripts\python -m pip install -r requirements-dev.txt
-.venv\Scripts\python -m scripts.setup_env
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m scripts.setup_env
 docker compose up -d --wait postgres mailpit
-.venv\Scripts\python -m scripts.import_catalog
-.venv\Scripts\python -m alembic upgrade head
-.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+.\.venv\Scripts\python.exe -m scripts.import_catalog
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 `setup_env`, rastgele bir veritabanı parolası ve bağımsız JWT anahtarıyla yerel `.env` oluşturur; mevcut dosyanın üzerine yazmaz. `.env.example` bir şablondur; boş parola ve anahtarlarla uygulama başlatılamaz. `--reload` yerel geliştirme içindir.
@@ -78,30 +85,33 @@ docker compose up -d --wait postgres mailpit
 
 **Yerel kurulum gerçek okul e-postasına mesaj göndermez.** Doğrulama mesajları Mailpit'te tutulur. Gerçek gönderim için SMTP sağlayıcısı yapılandırılmalıdır.
 
-İlk kullanım akışı: **kayıt → Mailpit'ten doğrulama kodu → e-posta doğrulama → giriş → akademik profil → dönem oluşturma → ders ekleme**. Geçmiş dönemleri doldurmak zorunlu değildir.
+İlk kullanım akışı: **kayıt → Mailpit'ten doğrulama kodu → e-posta doğrulama → giriş → akademik profil → dönem oluşturma → ders ekleme**. Profilde fakültenizi, bölümünüzü, ders planınızı, giriş yılınızı, hazırlık durumunuzu ve sınıfınızı seçin. İlk dönemi oluştururken müfredat dönemini seçin. **Derslerim → Ders ekle** ekranında önerilen bir dersi işaretleyip **Seçilenleri ekle** düğmesine basın. Geçmiş dönemleri doldurmak zorunlu değildir.
 
 Swagger'da korumalı endpoint'ler için önce hesabınızı doğrulayın. **Authorize** penceresinde `username` alanına okul e-postanızı, `password` alanına parolanızı girin; `client_id` ve `client_secret` boş kalır.
 
 ### Sonraki açılışlar
 
 ```sh
-docker compose up -d postgres mailpit
+docker compose up -d --wait postgres mailpit
 .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Windows'ta Python yolu `.venv\Scripts\python` olur. FastAPI'yi terminalde `Ctrl+C`, Docker servislerini `docker compose stop` ile durdurabilirsiniz. Normal açılışta katalog aktarımını tekrar çalıştırmanız gerekmez.
+Windows'ta Python yolu `.\.venv\Scripts\python.exe` olur. FastAPI'yi terminalde `Ctrl+C`, Docker servislerini `docker compose stop` ile durdurabilirsiniz. Normal açılışta katalog aktarımını tekrar çalıştırmanız gerekmez.
 
 ### Mevcut kurulumu güncelleme
+
+Yeni sürümün dosyalarını mevcut depo klasörüne aldıktan sonra çalışan FastAPI sürecini durdurun. Mevcut `.env` ve PostgreSQL volume’u ile aşağıdaki adımları uygulayın.
 
 ```sh
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -r requirements-dev.txt
 .venv/bin/python -m scripts.setup_env --add-auth-settings
 docker compose up -d --wait postgres mailpit
+.venv/bin/python -m scripts.import_catalog
 .venv/bin/python -m alembic upgrade head
 ```
 
-`--add-auth-settings`, mevcut `.env` değerlerini koruyarak eksik kimlik doğrulama ayarlarını ekler. Ardından FastAPI'yi yeniden başlatın. Windows'ta aynı komutlarda `.venv\Scripts\python` kullanın.
+`--add-auth-settings`, mevcut `.env` değerlerini koruyarak eksik kimlik doğrulama ayarlarını ekler. Ardından FastAPI'yi yeniden başlatın. Windows'ta aynı komutlarda `.\.venv\Scripts\python.exe` kullanın.
 
 ## Yapılandırma ve gizli bilgiler
 
@@ -109,7 +119,7 @@ docker compose up -d --wait postgres mailpit
 - Ortak ders durumu ve dönem seçenekleri: `app/core/choices.py`.
 - Yerel bağlantı: PostgreSQL `127.0.0.1:5433`, SMTP `127.0.0.1:1025`. Docker portları localhost ile sınırlıdır.
 - `.env`, `.venv` ve yerel PostgreSQL çalışma klasörü `.local/`, Git dışında tutulur. Gerçek parolaları, JWT anahtarlarını, kullanıcı verilerini ve veritabanı yedeklerini depoya eklemeyin.
-- Web oturumu HttpOnly cookie kullanır; JWT tarayıcıda `localStorage` içine yazılmaz. Swagger/API istemcileri Bearer token kullanabilir.
+- Web girişi JWT’yi HttpOnly çerezde taşır ve JSON gövdesinde yalnızca başarı mesajı döndürür. Swagger/API girişinde `access_token`, `token_type` ve `expires_in` döner. **Parolamı unuttum** ekranındaki tek kullanımlık kod varsayılan olarak 15 dakika geçerlidir.
 
 Docker volume içindeki veritabanı parolası, `.env` değişince otomatik güncellenmez. Parola değiştirmek için:
 
@@ -129,13 +139,13 @@ Aşağıdaki yollar `/api/v1` altında sunulur. Tam alanlar ve örnek yanıtlar 
 | Modül | Başlıca endpoint'ler |
 | --- | --- |
 | Katalog | `GET /catalog/academic-units`, `/catalog/programs`, `/catalog/curricula`, `/catalog/courses` |
-| Hesap | `POST /auth/register`, `/auth/resend-verification`, `/auth/verify-email`, `/auth/login` |
+| Hesap | `POST /auth/register`, `/auth/resend-verification`, `/auth/verify-email`, `/auth/login`, `/auth/forgot-password`, `/auth/reset-password` |
 | Kullanıcı | `GET /users/me` |
 | Akademik profil | `GET`, `PUT /users/me/academic-profile` |
 | Dönemler | `GET`, `POST /terms`; `GET`, `PATCH`, `DELETE /terms/{term_id}` |
 | Ders önerileri | `GET /terms/{term_id}/suggestions` |
 | Kişisel dersler | `GET`, `POST /enrollments`; `GET`, `PATCH`, `DELETE /enrollments/{enrollment_id}` |
-| Sınav aralıkları | `GET /exams/calendar` |
+| Sınavlar | `GET /exams/calendar`, `/exams/sync-status`, `/exams/search`, `/exams/documents/{document_id}/rows` ve `PUT /exams/selection` |
 | Ödevler | `GET`, `POST /assignments`; `GET`, `PATCH`, `DELETE /assignments/{assignment_id}`; `POST /assignments/{assignment_id}/restore` |
 | Geri yükleme | `POST /enrollments/{enrollment_id}/restore` |
 
@@ -145,7 +155,7 @@ Katalog herkese açıktır; kişisel endpoint'ler aktif ve e-postası doğrulanm
 
 Katalog ile kullanıcı verilerinin şema yönetimi ayrıdır:
 
-- **Katalog:** `catalog/` altındaki SQL dosyaları `scripts.import_catalog` ile aktarılır. Aktarım transaction, advisory lock ve `catalog_migrations` içindeki SHA-256 kayıtlarıyla korunur. Uygulanmış SQL dosyaları değiştirilerek tekrar aktarılmaz.
+- **Katalog:** `catalog/` altındaki SQL dosyaları `scripts.import_catalog` ile aktarılır. Aktarım transaction, advisory lock ve `catalog_migrations` içindeki SHA-256 kayıtlarıyla korunur. Uygulanmış SQL dosyaları değiştirilerek tekrar aktarılmaz. Modern Diller ortak seçmelilerini mevcut kuruluma eklemek için `python -m scripts.import_catalog` komutunu tekrar çalıştırın. İkinci katalog aktarımı, 20 Kasım 2026 tarihinde kontrol edilen [resmî Modern Diller ders planını](https://halic.edu.tr/tr/akademik/yuksekokullar/yabanci-diller-yuksekokulu/bolumler/modern-diller) kullanır.
 - **Uygulama:** Alembic, `DATABASE_URL` üzerinden kullanıcı ve akademik planlama tablolarını yönetir. Uygulama açılışında otomatik tablo oluşturulmaz.
 
 | Revision | Değişiklik |
@@ -156,6 +166,7 @@ Katalog ile kullanıcı verilerinin şema yönetimi ayrıdır:
 | `0004_academic_planning` | Akademik profil, kişisel dönem ve ders tablolarını ekler |
 | `0005_assignments` | Derslere bağlı kişisel ödevleri ve sahiplik kısıtını ekler |
 | `0006_exam_sources` | Resmi sınav dosyası sürümleri, kontrol durumu ve kişisel şube seçimi |
+| `0007_password_reset` | Tek kullanımlık parola sıfırlama kodları ve oturum sürümü |
 
 Katalog aktarımı uygulama migration'larından önce yapılmalıdır. Alembic autogenerate kapsamı `app/db/migrations.py` içindeki on uygulama tablosuyla sınırlıdır; mevcut katalog tablolarını silinecek tablo olarak değerlendirmemesi için katalog kapsam dışında tutulur. Yeni uygulama tablosu eklenirken izin listesi ve migration birlikte güncellenmelidir.
 
@@ -166,11 +177,15 @@ Katalog aktarımı uygulama migration'larından önce yapılmalıdır. Alembic a
 
 ## Test ve doğrulama
 
-Çalışan PostgreSQL ve geçerli yerel `.env` ile:
+Testler için ayrı bir PostgreSQL veritabanı kullanın. Bu veritabanını gösteren `DATABASE_URL` ile önce katalog aktarımını ve `alembic upgrade head` adımını tamamlayın. Test ortamında dış duyuru taramasını `EXAM_SYNC_ENABLED=false` ile kapatabilirsiniz.
 
 ```sh
-.venv/bin/python -m pytest -q
+.venv/bin/python -m pytest -q tests/
 ```
+
+Windows PowerShell için `.\.venv\Scripts\python.exe -m pytest -q tests/` kullanın. JavaScript testleri için Node.js 22 veya üzeriyle depo kökünde `node --test "tests/*.mjs"` çalıştırın.
+
+İsteğe bağlı tarayıcı testi için Google Chrome ve Node.js ortamında erişilebilir `playwright` paketi gerekir. npm ile yalnızca bu kontrol için `npm install --no-save --package-lock=false playwright` çalıştırabilirsiniz. `node --test tests/browser/workspace.cjs` sentetik API yanıtlarıyla mobil ve masaüstü akışlarını çalıştırır.
 
 Testler; e-posta politikası, kayıt/giriş, doğrulama, migration kapsamı, kullanıcı sahipliği, akademik profil, dönem ve ders işlemleri ile web oturumu güvenliğini kapsar. Katalog testleri mevcut kataloğu salt okunur kullanır. Veritabanına yazan testler geçici şemalar ve geri alınan transaction'larla çalışır; test veritabanı kullanıcısının şema oluşturma yetkisi gerekir.
 
@@ -210,7 +225,7 @@ Planlanan geliştirme sırası:
 2. Çalışma süresi kayıtları ve gerçek verilere dayalı özetler.
 3. Teslim tarihi, önem ve iş yüküne göre açıklanabilir önceliklendirme.
 
-Çalışma oturumları, konu checklist’i, hedef karşılaştırması ve akıllı önceliklendirme henüz uygulanmamıştır. Gerçek kullanıcılara açılmadan önce SMTP ile gerçek gönderim, parola sıfırlama, HTTPS dağıtımı ve veritabanı yedekleme/geri yükleme süreci tamamlanmalıdır.
+Çalışma oturumları, konu checklist’i, hedef karşılaştırması ve akıllı önceliklendirme henüz uygulanmamıştır. Gerçek kullanıcılara açılmadan önce SMTP ile gerçek gönderim, HTTPS dağıtımı ve veritabanı yedekleme/geri yükleme süreci tamamlanmalıdır.
 
 ## Belgeler
 

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import secrets
+import logging
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.email_policy import normalize_student_email
-from app.core.security import DUMMY_PASSWORD_HASH, hash_password, hash_verification_token, verify_password
+from app.core.security import DUMMY_PASSWORD_HASH, hash_password, hash_reset_token, hash_verification_token, verify_password
 from app.models import EmailVerification, User
 from app.schemas.auth import RegisterRequest
 from app.services.mail import MailDeliveryError, VerificationMailer
@@ -98,3 +99,37 @@ def authenticate(db: Session, email: str, password: str) -> User:
     if user.email_verified_at is None:
         raise HTTPException(403, 'Giriş yapmadan önce e-posta adresinizi doğrulayın.')
     return user
+
+
+def issue_reset_code(db: Session, email: str) -> str | None:
+    user = db.scalar(select(User).where(User.email == email, User.is_active.is_(True)).with_for_update())
+    if user is None:
+        db.rollback()
+        return None
+    token = secrets.token_urlsafe(32)
+    user.reset_token_hash = hash_reset_token(token)
+    user.reset_expires_at = datetime.now(timezone.utc) + timedelta(minutes=settings.password_reset_expire_minutes)
+    db.commit()
+    return token
+
+
+def deliver_reset_code(mailer: VerificationMailer, email: str, token: str):
+    try:
+        mailer.send_password_reset(email, token)
+    except MailDeliveryError:
+        logging.getLogger(__name__).warning('Password reset email delivery failed')
+
+
+def reset_password(db: Session, token: str, password: str):
+    user = db.scalar(select(User).where(
+        User.reset_token_hash == hash_reset_token(token), User.is_active.is_(True),
+    ).with_for_update())
+    if user is None or user.reset_expires_at is None or user.reset_expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(400, 'Sıfırlama kodu geçersiz veya süresi dolmuş. Yeni kod iste.')
+    if verify_password(password, user.hashed_password):
+        raise HTTPException(422, 'Yeni parola önceki parolandan farklı olmalı.')
+    user.hashed_password = hash_password(password)
+    user.reset_token_hash = None
+    user.reset_expires_at = None
+    user.session_version += 1
+    db.commit()

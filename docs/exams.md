@@ -30,7 +30,7 @@ Aktif ve devam eden kişisel dersler; dönem/yıl, normalize ders kodu, ders ad�
 
 Program bilgisi de doğrulanmış tek ve şubesiz eşleşme otomatik gösterilir. Bölüm bilgisi eksik satırlar seçim gerektirir. Şube varsa veya birden fazla saat/yer bulunuyorsa öğrenci adaylar arasından seçim yapar; sahiplik sunucuda denetlenir. Aynı sınavın tüm-liste/fakülte kopyaları aynı olay olarak birleştirilir. Birden fazla salon içeren satır kişisel salon ataması olarak yorumlanmaz.
 
-Saatler Türkiye saatidir (UTC+3). Sınav takvimi değiştiğinde eski sürüm tutulur, yeni sürüm etkinleşir. Önceki otomatik eşleşmede tarih değişmişse ekranda gösterilir; eski belgeye yapılmış grup seçimi yeniden doğrulama gerektirir. Eksik/bozuk yeni sürüm eski kesin tarihi sessizce devam ettirmez. Son başarılı dosya kontrolü 48 saatten eskiyse kesin eşleştirmeden çıkarılır. Ağ hatasında genel akademik takvim desteği devam eder.
+Saatler Türkiye saatidir (UTC+3). Sınav takvimi değiştiğinde eski sürüm tutulur, yeni sürüm etkinleşir. Önceki otomatik eşleşmede tarih değişmişse ekranda gösterilir; eski belgeye yapılmış grup seçimi yeniden doğrulama gerektirir. Eksik/bozuk yeni sürüm eski kesin tarihi sessizce devam ettirmez. Son başarılı dosya kontrolü 48 saatten eskiyse kesin eşleştirmeden çıkarılır. Duyuruya erişilemezse veya belge 48 saati aşarsa kişisel takvim önceki saati yalnızca son bilinen bilgi olarak gösterebilir. Ders araması bu belgeyi dışarıda bırakır ve belge satırları isteği 404 döner. Genel akademik takvim aralıkları kullanılabilir.
 
 ## Veritabanı ve API
 
@@ -46,6 +46,8 @@ Katalog ve mevcut kişisel kayıtlar değiştirilmez. Alembic kapsamı on uygula
 | --- | --- |
 | `GET /api/v1/exams/calendar` | Kendi dönemleri, genel aralıklar, kesin eşleşmeler ve seçim adayları |
 | `GET /api/v1/exams/sync-status` | Son kaynak kontrolü ve hataları |
+| `GET /api/v1/exams/search?term_id=…&q=…` | Dönemin güncel belgelerinde ders araması |
+| `GET /api/v1/exams/documents/{document_id}/rows` | Güncel belgedeki satırlar |
 | `PUT /api/v1/exams/selection` | Kendi dersine ait güncel adayın seçimi |
 
 Seçim gövdesi `enrollment_id`, `exam_type`, `document_id`, `sheet`, `row_number` alanlarını içerir. Bunlar takvim yanıtındaki adaydan alınır; çoklu satır ayrımında `row` kaynağın fiziksel satırından türetilen benzersiz aday anahtarıdır, `source_row` özgün satırdır. Başkasının dersi 404; artık geçerli olmayan aday 409 döner. Tüm API'ler aktif ve e-postası doğrulanmış hesap ister.

@@ -13,23 +13,31 @@ class MailDeliveryError(Exception):
 
 class VerificationMailer(Protocol):
     def send_verification(self, email: str, token: str) -> None: ...
+    def send_password_reset(self, email: str, token: str) -> None: ...
 
 
 class SMTPMailer:
     def send_verification(self, email: str, token: str) -> None:
-        message = EmailMessage()
-        message['Subject'] = f'{settings.application_name} — E-posta adresini doğrula'
-        message['From'] = f'{settings.application_name} <{settings.smtp_from}>'
-        message['To'] = email
-        message.set_content(
+        self._send(email, 'E-posta adresini doğrula',
             f'{settings.application_name} hesabını doğrulamak için aşağıdaki tek kullanımlık kodu kullan:\n\n'
-            f'{token}\n\n'
-            f'Bu kod {settings.email_verification_expire_minutes} dakika geçerlidir.\n'
+            f'{token}\n\nBu kod {settings.email_verification_expire_minutes} dakika geçerlidir.\n'
             'Kodu uygulamanın e-posta doğrulama alanına gir. '
             'Geliştirme aşamasında Swagger üzerinden POST /api/v1/auth/verify-email '
             'isteğinin token alanında kullanabilirsin.\n\n'
-            'Bu kaydı sen başlatmadıysan bu mesajı dikkate alma.\n'
-        )
+            'Bu kaydı sen başlatmadıysan bu mesajı dikkate alma.')
+
+    def send_password_reset(self, email: str, token: str) -> None:
+        self._send(email, 'Parola sıfırlama kodu',
+            f'Parolamı unuttum ekranına aşağıdaki tek kullanımlık kodu gir:\n\n{token}\n\n'
+            f'Kod {settings.password_reset_expire_minutes} dakika geçerlidir. '
+            'Bu isteği sen başlatmadıysan mesajı dikkate alma.')
+
+    def _send(self, email: str, subject: str, body: str) -> None:
+        message = EmailMessage()
+        message['Subject'] = f'{settings.application_name} — {subject}'
+        message['From'] = f'{settings.application_name} <{settings.smtp_from}>'
+        message['To'] = email
+        message.set_content(body)
         smtp_class = smtplib.SMTP_SSL if settings.smtp_tls_mode == 'ssl' else smtplib.SMTP
         kwargs = {'timeout': settings.smtp_timeout_seconds}
         if settings.smtp_tls_mode == 'ssl':

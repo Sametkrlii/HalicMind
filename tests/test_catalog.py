@@ -40,3 +40,44 @@ def test_identity_sequences():
             maximum = conn.execute(text(f'SELECT max(id) FROM {table}')).scalar_one()
             value = conn.execute(text(f'SELECT last_value FROM {seq}')).scalar_one()
             assert value >= (maximum or 1)
+
+
+def test_import_preserves_legacy_checksums_across_checkout_line_endings(tmp_path, monkeypatch):
+    import hashlib
+    from contextlib import nullcontext
+    from uuid import uuid4
+
+    import psycopg
+    import pytest
+    from scripts import import_catalog
+
+    catalog = tmp_path / 'catalog'
+    catalog.mkdir()
+    sources = {
+        'schema.sql': 'CREATE TABLE labels (name text);\n',
+        'research_extension.sql': '-- Kaynak bilgisi\n',
+        'catalog_data_postgresql.sql': "INSERT INTO labels VALUES ('Türkçe');\n",
+        '002_university_electives.sql': "INSERT INTO labels VALUES ('Seçmeli');\n",
+    }
+    for name, sql in sources.items():
+        (catalog / name).write_bytes(sql.encode('utf-8'))
+    url = import_catalog.settings.database_url.replace('postgresql+psycopg://', 'postgresql://', 1)
+    with psycopg.connect(url) as conn, conn.transaction(force_rollback=True):
+        schema = 'test_catalog_' + uuid4().hex
+        conn.execute(f'CREATE SCHEMA "{schema}"')
+        conn.execute(f'SET LOCAL search_path TO "{schema}"')
+        monkeypatch.setattr(import_catalog, 'ROOT', tmp_path)
+        monkeypatch.setattr(import_catalog.psycopg, 'connect', lambda _: nullcontext(conn))
+        import_catalog.main()
+        old_bytes = ''.join(list(sources.values())[:3]).replace('\n', '\r\n').encode('utf-8')
+        old_digest = hashlib.sha256(old_bytes).hexdigest()
+        conn.execute("UPDATE catalog_migrations SET checksum=%s WHERE version='001'", (old_digest,))
+        import_catalog.main()  # LF checkout with a previous Windows installation
+        for name, sql in sources.items():
+            (catalog / name).write_bytes(sql.replace('\n', '\r\n').encode('utf-8'))
+        import_catalog.main()  # CRLF checkout with a canonical checksum for 002
+        assert conn.execute('SELECT name FROM labels ORDER BY name').fetchall() == [('Seçmeli',), ('Türkçe',)]
+        assert conn.execute('SELECT count(*) FROM catalog_migrations').fetchone() == (2,)
+        (catalog / 'schema.sql').write_bytes(b'-- changed\n')
+        with pytest.raises(RuntimeError, match='001 changed'):
+            import_catalog.main()

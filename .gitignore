@@ -225,3 +225,10 @@ __marimo__/
 # Private environment variants (keep the sanitized setup template).
 .env.*
 !.env.example
+
+.DS_Store
+/Arşiv/
+/Arşiv.zip
+
+# Optional browser test dependencies
+/node_modules/

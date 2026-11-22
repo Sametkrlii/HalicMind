@@ -143,10 +143,16 @@ def test_uncertain_or_outdated_source_is_never_an_exact_exam(academic_app,change
     env=academic_app;parent=term(env);enroll(env,parent['id'])
     doc=add_document(env,program='Other program' if change=='program' else 'Catalog sentinel',year=2025 if change=='year' else 2026)
     if change=='stale':
-        env.connection.execute(text("UPDATE exam_documents SET checked_at=now()-interval '3 days' WHERE id=:id"),{'id':doc})
+        env.connection.execute(text("UPDATE exam_documents SET checked_at=now()-interval '49 hours' WHERE id=:id"),{'id':doc})
     if change=='review':
         env.connection.execute(text("UPDATE exam_documents SET status='review' WHERE id=:id"),{'id':doc})
-    assert env.client.get('/api/v1/exams/calendar').json()[0]['exams']==[]
+    groups = env.client.get('/api/v1/exams/calendar').json()[0]['exams']
+    if change == 'stale':
+        assert groups[0]['status'] == 'source_unavailable' and groups[0]['selected'] is None
+        assert env.client.get(f'/api/v1/exams/documents/{doc}/rows').status_code == 404
+        assert env.client.get('/api/v1/exams/search', params={'term_id':parent['id'], 'q':'MAT101'}).json()['matches'] == []
+    else:
+        assert groups == []
 
 
 def test_revised_time_is_visible_and_conflicting_files_require_selection(academic_app):
@@ -219,6 +225,22 @@ def test_polling_discovers_downloads_and_updates_a_realistic_announcement(academ
     result=run_sync(force=True,session_factory=factory,fetcher=fetcher)
     assert env.connection.scalar(text('SELECT count(*) FROM exam_documents'))==1
     assert result['files_seen']==1
+    parent = term(env)
+    enroll(env, parent['id'])
+    doc = env.connection.scalar(text('SELECT id FROM exam_documents'))
+    search = '/api/v1/exams/search'
+    params = {'term_id':parent['id'], 'q':'MAT101'}
+    assert env.client.get(search, params=params).json()['matches']
+    def offline(url, limit):
+        if url == ANNOUNCEMENT:
+            raise ConnectionError()
+        return fetcher(url, limit)
+    assert run_sync(force=True,session_factory=factory,fetcher=offline)['status'] == 'partial'
+    assert env.client.get('/api/v1/exams/calendar').json()[0]['exams'][0]['status'] == 'source_unavailable'
+    assert env.client.get(search, params=params).json()['matches'] == []
+    assert env.client.get(f'/api/v1/exams/documents/{doc}/rows').status_code == 404
+    assert run_sync(force=True,session_factory=factory,fetcher=fetcher)['status'] == 'ok'
+    assert env.client.get(f'/api/v1/exams/documents/{doc}/rows').status_code == 200
     # A removed attachment invalidates the current source while preserving its history.
     def removed(url,limit):
         return b'<h1>Schedule updated</h1>' if url==ANNOUNCEMENT else listing.encode()
@@ -240,3 +262,71 @@ def test_duplicate_official_copy_preserves_existing_section_selection(academic_a
     assert group['status']=='confirmed'
     assert group['selected']['document_id']==second
     assert group['selection_changed'] is False
+
+
+@pytest.mark.parametrize('legacy', [False, True])
+def test_failed_source_exposes_last_known_time_without_confirming_it(academic_app, legacy):
+    env = academic_app
+    parent = term(env)
+    enroll(env, parent['id'])
+    doc = add_document(env)
+    if not legacy:
+        env.connection.execute(text("UPDATE exam_documents SET status='stale' WHERE id=:id"), {'id': doc})
+    from app.models.exam import ExamSyncState
+    with Session(bind=env.connection, join_transaction_mode='create_savepoint') as db:
+        db.add(ExamSyncState(id=1, status='partial', checked_at=datetime.now(timezone.utc), errors=[{'url': ANNOUNCEMENT, 'message': 'Kaynak yanıt vermedi.'}]))
+        db.commit()
+    group, = env.client.get('/api/v1/exams/calendar').json()[0]['exams']
+    assert group['status'] == 'source_unavailable'
+    assert group['selected'] is None and group['candidates'] == []
+    assert group['last_known'][0]['starts_at'].endswith('10:30:00+03:00')
+    assert env.client.get(f'/api/v1/exams/documents/{doc}/rows').status_code == 404
+    assert env.client.get('/api/v1/exams/search', params={'term_id':parent['id'], 'q':'MAT101'}).json()['matches'] == []
+
+
+def test_search_other_courses_in_current_readable_term_documents(academic_app):
+    env = academic_app
+    parent = term(env)
+    doc = add_document(env)
+    add_document(env, year=2025, file_url=FILE.replace('final', 'previous'))
+    url = '/api/v1/exams/search'
+    for query in ('mat 101', 'matematik'):
+        params = {'term_id': parent['id'], 'q': query}
+        response = env.client.get(url, params=params)
+        assert response.status_code == 200
+        rows = response.json()['matches']
+        assert len(rows) == 1 and rows[0]['exam_type'] == 'final'
+    assert env.client.get(url, params=params, headers=env.other_headers).status_code == 404
+    env.connection.execute(text("UPDATE exam_documents SET status='review' WHERE id=:id"), {'id': doc})
+    assert env.client.get(url, params=params).json()['matches'] == []
+
+@pytest.mark.parametrize('legacy', [False, True])
+def test_section_survives_calendar_reload_with_colliding_physical_row(academic_app, legacy):
+    env = academic_app
+    course = enroll(env, term(env)['id']).json()
+    doc_id = add_document(env)
+    matrix = [ROWS[0], [*ROWS[1][:-1], 'A;A'], *([[]] * 1998),
+              ['MAT101','Matematik','28.12.2026','13:15','B205','B']]
+    rows, warnings = parse_sheet(matrix, 'Sınavlar', CONTEXT)
+    assert not warnings and len({row['row'] for row in rows}) == 3
+    with Session(bind=env.connection, join_transaction_mode='create_savepoint') as db:
+        if legacy:
+            from app.models.exam import ExamSelection
+            rows[0]['row'], rows[1]['row'] = 2001, 2002
+            db.add(ExamSelection(enrollment_id=course['id'], user_id=course['user_id'],
+                exam_type='final', document_id=doc_id, sheet='Sınavlar', row_number=2001))
+        db.get(ExamDocument, doc_id).rows = rows
+        db.commit()
+    def group():
+        return env.client.get('/api/v1/exams/calendar').json()[0]['exams'][0]
+    initial = group()
+    assert initial['status'] == 'selection_required' and initial['selected'] is None
+    assert [row['section'] for row in initial['candidates']] == ['A', 'B']
+    candidate = initial['candidates'][1]
+    payload = dict(enrollment_id=course['id'], exam_type='final', document_id=doc_id,
+                   sheet='Sınavlar', row_number=candidate['row'])
+    if legacy:
+        assert env.client.put('/api/v1/exams/selection', json={**payload,'row_number':2001}).status_code == 409
+    assert env.client.put('/api/v1/exams/selection', json=payload).status_code == 200
+    selected = group()['selected']
+    assert (selected['section'], selected['starts_at'], selected['room']) == ('B', '2026-12-28T13:15:00+03:00', 'B205')

@@ -47,15 +47,21 @@ def create_enrollment(db: Session, user_id: int, data: EnrollmentCreate):
             FROM course_revisions r JOIN courses c ON c.id=r.course_id
             LEFT JOIN course_source_details d ON d.course_revision_id=r.id
             WHERE r.id=:revision
-              AND NOT EXISTS (SELECT 1 FROM catalog_source_rows sr
-                              WHERE sr.program_id=:program AND sr.course_code_original=c.course_code
-                                    AND sr.row_kind='slot')
               AND (
-                EXISTS (SELECT 1 FROM curriculum_courses WHERE curriculum_id=:curriculum AND course_revision_id=r.id)
-                OR EXISTS (SELECT 1 FROM annual_curriculum_courses WHERE curriculum_id=:curriculum AND course_revision_id=r.id)
-                OR EXISTS (SELECT 1 FROM elective_group_courses egc JOIN elective_groups eg ON eg.id=egc.elective_group_id
-                           WHERE eg.curriculum_id=:curriculum AND egc.course_revision_id=r.id)
-            )
+                EXISTS (SELECT 1 FROM available_university_electives
+                        WHERE curriculum_id=:curriculum AND course_revision_id=r.id)
+                OR (
+                    NOT EXISTS (SELECT 1 FROM catalog_source_rows sr
+                                WHERE sr.program_id=:program AND sr.course_code_original=c.course_code
+                                  AND sr.row_kind='slot')
+                    AND (
+                        EXISTS (SELECT 1 FROM curriculum_courses WHERE curriculum_id=:curriculum AND course_revision_id=r.id)
+                        OR EXISTS (SELECT 1 FROM annual_curriculum_courses WHERE curriculum_id=:curriculum AND course_revision_id=r.id)
+                        OR EXISTS (SELECT 1 FROM elective_group_courses egc JOIN elective_groups eg ON eg.id=egc.elective_group_id
+                                   WHERE eg.curriculum_id=:curriculum AND egc.course_revision_id=r.id)
+                    )
+                )
+              )
         '''), {'revision': data.course_revision_id, 'curriculum': term.curriculum_id, 'program': term.program_id}).mappings().one_or_none()
         if course is None:
             raise HTTPException(422, 'Ders seçilen ders planında bulunamadı veya bir seçmeli grup başlığı. Grubun içinden gerçek bir ders seçin.')

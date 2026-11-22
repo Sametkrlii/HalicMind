@@ -26,7 +26,7 @@ async def lifespan(app):
             await worker
         engine.dispose()
 
-app = FastAPI(title=settings.application_name, lifespan=lifespan)
+app = FastAPI(title=settings.application_name, version='0.2.0', lifespan=lifespan)
 app.include_router(router, prefix='/api/v1')
 WEB_ROOT = Path(__file__).resolve().parent / 'web'
 app.mount('/assets', StaticFiles(directory=WEB_ROOT), name='assets')

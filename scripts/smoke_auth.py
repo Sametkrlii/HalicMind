@@ -30,7 +30,7 @@ def main():
             connection.execute(text(f'SET LOCAL search_path TO "{schema}"'))
             root = Path(__file__).resolve().parents[1]
             for name in ('schema.sql', 'research_extension.sql'):
-                sql = '\n'.join(line for line in (root / 'catalog' / name).read_text().splitlines()
+                sql = '\n'.join(line for line in (root / 'catalog' / name).read_text(encoding='utf-8').splitlines()
                                 if line.strip().upper() not in {'BEGIN;', 'COMMIT;'})
                 connection.connection.driver_connection.execute(sql, prepare=False)
             config = Config(str(Path(__file__).resolve().parents[1] / 'alembic.ini'))

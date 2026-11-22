@@ -34,6 +34,8 @@ def test_cookie_login_refresh_csrf_and_logout(auth_app):
     assert verify(env).status_code==200
     response=web_login(env)
     assert response.status_code==200
+    assert set(response.json()) == {'message'}
+    assert response.cookies['halicmind_session'] not in response.text
     cookie=response.headers['set-cookie']
     assert 'HttpOnly' in cookie and 'SameSite=lax' in cookie and 'Path=/api/v1' in cookie
     assert 'Max-Age=1800' in cookie
@@ -70,6 +72,9 @@ def test_swagger_login_does_not_create_browser_cookie(auth_app):
     assert verify(env).status_code==200
     response=env.client.post('/api/v1/auth/login',data={'username':EMAIL,'password':PASSWORD})
     assert response.status_code==200 and 'set-cookie' not in response.headers
+    token = response.json()
+    assert set(token) == {'access_token', 'token_type', 'expires_in'}
+    assert env.client.get('/api/v1/users/me', headers={'Authorization': 'Bearer ' + token['access_token']}).status_code == 200
     assert env.client.get('/api/v1/users/me').status_code==401
 
 

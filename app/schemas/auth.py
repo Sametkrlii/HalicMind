@@ -7,12 +7,15 @@ from app.core.email_policy import normalize_student_email
 StudentEmail = Annotated[str, BeforeValidator(normalize_student_email)]
 
 
+Password = Annotated[SecretStr, Field(min_length=12, max_length=128)]
+
+
 class RegisterRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     email: StudentEmail
     full_name: str = Field(min_length=1, max_length=200)
-    password: SecretStr = Field(min_length=12, max_length=128)
+    password: Password
 
     @field_validator('full_name', mode='before')
     @classmethod
@@ -38,3 +41,11 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = 'bearer'
     expires_in: int
+
+
+class PasswordResetRequest(VerifyEmailRequest):
+    password: Password
+
+
+class ResetCodeResponse(MessageResponse):
+    retry_after: int

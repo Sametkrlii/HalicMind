@@ -157,6 +157,8 @@ def run_sync(*, force=False, session_factory=SessionLocal, fetcher=fetch):
                         # Keep history, but do not label an unchecked old copy as current and certain.
                         db.execute(update(ExamDocument).where(ExamDocument.file_url==url,ExamDocument.current.is_(True)).values(status='stale'))
             except Exception as exc:
+                db.execute(update(ExamDocument).where(ExamDocument.announcement_url == announcement,
+                    ExamDocument.current.is_(True)).values(status='stale'))
                 errors.append(dict(url=announcement,message=error_label(exc)))
         if state is None:
             state=ExamSyncState(id=1,status='pending',errors=[],files_seen=0);db.add(state)

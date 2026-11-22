@@ -9,7 +9,8 @@ const candidate={document_id:2,exam_type:'final',source_url:'https://halic.edu.t
 test('source failures stay visible and do not claim a schedule is unpublished',()=>{
  const html=ui.page(state);
  assert.match(html,/HTTP 403/);
- assert.match(html,/yayımlanmadığı anlamına gelmez/);
+ assert.match(html,/Bu dönemde devam eden dersin yok/);
+ assert.match(html,/Diğer derslerin sınavları/);
  assert.match(html,/Bazı kaynaklar kontrol edilemedi/);
 });
 test('uncertain candidates expose stable selection fields and shared-room notice',()=>{

@@ -23,11 +23,11 @@ def get_current_user(request: Request, db: DB, token: Annotated[str | None, Depe
     if not token:
         raise unauthorized
     try:
-        user_id = decode_access_token(token)
+        user_id, version = decode_access_token(token)
     except InvalidTokenError:
         raise unauthorized from None
     user = db.get(User, user_id)
-    if user is None or not user.is_active or user.email_verified_at is None:
+    if user is None or user.session_version != version or not user.is_active or user.email_verified_at is None:
         raise unauthorized
     return user
 

@@ -1,7 +1,7 @@
 # PostgreSQL katalog aktarımı
 
 Yerel veritabanı: `halicmind`, adres: `127.0.0.1:5433`.
-Şema: `public`. Uygulama hesabı: superuser olmayan `halicmind`.
+Şema: `public`. Compose kurulumu, PostgreSQL imajının ilk yönetici rolü olarak `halicmind` kullanır.
 Bağlantı ayarı `.env` içindeki `DATABASE_URL`; parola repoya eklenmez.
 
 ## Dosyalar
@@ -9,6 +9,7 @@ Bağlantı ayarı `.env` içindeki `DATABASE_URL`; parola repoya eklenmez.
 - `catalog/schema.sql`: temel katalog tabloları ve `catalog_export` görünümü.
 - `catalog/research_extension.sql`: kaynak izlenebilirliği, yıllık planlar, seçmeli üyelikleri ve `catalog_courses_readable` görünümü.
 - `catalog/catalog_data_postgresql.sql`: veriler ve identity sequence düzeltmeleri.
+- `catalog/002_university_electives.sql` ortak Modern Diller derslerini ekler.
 - `scripts/import_catalog.py`: dosyaları tek transaction içinde çalıştıran, checksum ve advisory lock kullanan aktarım.
 - `scripts/local_db.py`: yerel küme kurulumu ve başlatma/durdurma.
 - `scripts/verify_catalog.py`: tüm kaynak tablo değerlerini karşılaştırma.
@@ -95,3 +96,5 @@ Mevcut hesapların doğrulama tarihi `NULL` kalır; `is_active` yönetimsel eri�
 `0005_assignments`, kişisel derslere bağlı `assignments` tablosunu ekler. `(enrollment_id, user_id)` bileşik yabancı anahtarı başka hesaba ait derse ödev bağlanmasını veritabanında da engeller. Katalog tabloları değişmez. Ödevler silinmek yerine arşivlenir; bağlı dersin arşivlenmesi ödev geçmişini korur. Alanlar ve kullanım: [Ödev rehberi](assignments.md).
 
 `0006_exam_sources`, resmi sınav belge sürümleri, kontrol durumu ve kullanıcıya ait şube seçimlerini ekler. [Sınav entegrasyonu](exams.md).
+
+`0007_password_reset` kullanıcı tablosuna sıfırlama kodu özeti, sona erme zamanı ve oturum sürümü ekler.

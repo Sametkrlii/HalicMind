@@ -28,7 +28,12 @@ def main():
         target.execute('SET TRANSACTION READ ONLY')
         for table in TABLES:
             expected = Counter(tuple(normalize(v) for v in row) for row in source.execute(f'SELECT * FROM {table}'))
-            actual = Counter(tuple(normalize(v) for v in row) for row in target.execute(sql.SQL('SELECT * FROM {}').format(sql.Identifier(table))))
+            query = sql.SQL('SELECT * FROM {}').format(sql.Identifier(table))
+            if table == 'course_revisions':
+                query += sql.SQL(' WHERE id NOT IN (SELECT course_revision_id FROM university_electives)')
+            elif table == 'courses':
+                query += sql.SQL(' WHERE id NOT IN (SELECT r.course_id FROM university_electives u JOIN course_revisions r ON r.id=u.course_revision_id)')
+            actual = Counter(tuple(normalize(v) for v in row) for row in target.execute(query))
             if actual != expected:
                 raise RuntimeError(f'Data mismatch in {table}')
             counts[table] = sum(actual.values())

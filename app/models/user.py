@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     Identity,
+    Integer,
     PrimaryKeyConstraint,
     String,
     UniqueConstraint,
@@ -23,6 +24,7 @@ class User(Base):
     __tablename__ = 'users'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='pk_users'),
+        UniqueConstraint('reset_token_hash', name='uq_users_reset_token_hash'),
         UniqueConstraint('email', name='uq_users_email'),
         CheckConstraint(
             "email = lower(btrim(email)) AND length(email) > 0",
@@ -43,6 +45,10 @@ class User(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now(),
     )
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    session_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default='0')
+    reset_token_hash: Mapped[str | None] = mapped_column(String(64))
+    reset_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     @validates('email')
     def normalize_email(self, key: str, value: str) -> str:

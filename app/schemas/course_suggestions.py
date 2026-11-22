@@ -13,6 +13,7 @@ class SuggestedCourse(BaseModel):
     course_name: str
     ects: Decimal | None
     course_type: Literal['required', 'elective']
+    is_university_elective: bool
     elective_group_id: int | None
     elective_group_name: str | None
     verification_status: str

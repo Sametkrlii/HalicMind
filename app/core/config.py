@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     jwt_secret_key: SecretStr = Field(min_length=32)
     access_token_expire_minutes: int = Field(default=30, ge=1, le=1440)
     email_verification_expire_minutes: int = Field(default=30, ge=1, le=1440)
+    password_reset_expire_minutes: int = Field(default=15, ge=1, le=1440)
     smtp_host: str = '127.0.0.1'
     smtp_port: int = Field(default=1025, ge=1, le=65535)
     smtp_tls_mode: Literal['none', 'starttls', 'ssl'] = 'none'

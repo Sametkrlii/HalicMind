@@ -26,7 +26,7 @@ GROUP_PLAN = '''(
 )'''
 
 
-def suggestions(db: Session, user_id: int, term_id: int, kind, number, q, limit, offset, all_periods=False):
+def suggestions(db: Session, user_id: int, term_id: int, kind, number, q, limit, offset, all_periods=False, include_university_electives=False):
     term = owned_term(db, user_id, term_id)
     if term.is_preparation:
         return {'curriculum_id': term.curriculum_id, 'period_kind': None, 'period_number': None,
@@ -42,10 +42,11 @@ def suggestions(db: Session, user_id: int, term_id: int, kind, number, q, limit,
             curriculum_id=term.curriculum_id, curriculum_period_kind=kind, curriculum_period_number=number,
         ))
     params = {'curriculum': term.curriculum_id, 'kind': kind, 'number': number,
-              'q': f'%{q}%' if q else None, 'limit': limit, 'offset': offset, 'all_periods': all_periods}
+              'q': f'%{q}%' if q else None, 'limit': limit, 'offset': offset, 'all_periods': all_periods,
+              'shared': all_periods and include_university_electives}
     rows = db.execute(text(f'''
         WITH placements AS ({PLACEMENTS}), candidates AS (
-            SELECT p.course_revision_id, p.course_type, p.elective_group_id FROM placements p
+            SELECT p.course_revision_id, p.course_type, p.elective_group_id, false AS is_university_elective FROM placements p
             WHERE p.curriculum_id=:curriculum
               AND (:all_periods OR (p.period_kind=:kind AND p.period_number=:number))
               AND NOT EXISTS (
@@ -57,14 +58,17 @@ def suggestions(db: Session, user_id: int, term_id: int, kind, number, q, limit,
                   WHERE r.id=p.course_revision_id
               )
             UNION
-            SELECT egc.course_revision_id, 'elective', eg.id
+            SELECT egc.course_revision_id, 'elective', eg.id, false
             FROM elective_group_courses egc JOIN elective_groups eg ON eg.id=egc.elective_group_id
             WHERE eg.curriculum_id=:curriculum AND (:all_periods OR egc.period_number=:number)
               AND {GROUP_PLAN}
+            UNION ALL
+            SELECT course_revision_id, 'elective', NULL, true FROM available_university_electives
+            WHERE :shared AND curriculum_id=:curriculum
         )
         SELECT DISTINCT r.id AS course_revision_id, r.course_id, c.course_code,
                coalesce(d.name_original, r.name_tr, r.name_en) AS course_name, r.ects,
-               ca.course_type, eg.id AS elective_group_id, eg.name AS elective_group_name,
+               ca.course_type, ca.is_university_elective, eg.id AS elective_group_id, eg.name AS elective_group_name,
                r.verification_status,
                CASE WHEN ca.course_type='required' THEN 0 ELSE 1 END AS sort_order
         FROM candidates ca JOIN course_revisions r ON r.id=ca.course_revision_id

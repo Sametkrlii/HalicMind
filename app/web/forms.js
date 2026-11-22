@@ -34,7 +34,7 @@ export function setFormBusy(form,busy){
   const button=form.querySelector('[type="submit"]');
   form.dataset.saving=String(busy);form.setAttribute('aria-busy',String(busy));
   if(!button)return;
-  if(busy){button.dataset.originalContent=button.innerHTML;button.disabled=true;button.innerHTML='<span class="loader" aria-hidden="true"></span>'+({login:'Giriş yapılıyor…',register:'Hesap oluşturuluyor…',verify:'Doğrulanıyor…','course-search':'Aranıyor…'}[form.dataset.form] || 'Kaydediliyor…');}
+  if(busy){button.dataset.originalContent=button.innerHTML;button.disabled=true;button.innerHTML='<span class="loader" aria-hidden="true"></span>'+({login:'Giriş yapılıyor…',register:'Hesap oluşturuluyor…',verify:'Doğrulanıyor…','send-verification':'Gönderiliyor…','request-reset':'Gönderiliyor…','reset-password':'Güncelleniyor…','course-search':'Aranıyor…'}[form.dataset.form] || 'Kaydediliyor…');}
   else{button.disabled=false;if(button.dataset.originalContent){button.innerHTML=button.dataset.originalContent;delete button.dataset.originalContent;}}
 }
 export function clearFormErrors(form){

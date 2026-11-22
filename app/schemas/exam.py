@@ -21,6 +21,7 @@ class TermExamCalendar(BaseModel):
     checked_on: date | None
     periods: list[ExamPeriod]
     exams: list[dict]
+    documents: list[dict] = Field(default_factory=list)
 
 
 class ExamSelectionCreate(BaseModel):
@@ -29,4 +30,4 @@ class ExamSelectionCreate(BaseModel):
     exam_type: Literal['midterm','final','makeup','resit']
     document_id: int = Field(gt=0)
     sheet: str = Field(min_length=1,max_length=100)
-    row_number: int = Field(ge=1,le=20_000_999)
+    row_number: int = Field(ge=1,le=41_000_500)
