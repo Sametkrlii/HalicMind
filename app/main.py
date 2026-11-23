@@ -43,7 +43,7 @@ def ui_config():
         'application_name': settings.application_name,
         'data_controller_name': settings.data_controller_name,
         'privacy_contact_email': settings.privacy_contact_email,
-        'local_mailbox': settings.smtp_host in {'127.0.0.1', 'localhost'} and settings.smtp_port == 1025,
+        'local_mailbox': settings.mail_provider == 'smtp' and settings.smtp_host in {'127.0.0.1', 'localhost'} and settings.smtp_port == 1025,
         'verification_expire_minutes': settings.email_verification_expire_minutes,
     }
 

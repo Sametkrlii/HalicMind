@@ -80,7 +80,7 @@ def login(request: Request, response: Response, db: DB, form: Annotated[OAuth2Pa
     if web_session:
         response.set_cookie(
             SESSION_COOKIE, token, max_age=settings.access_token_expire_minutes * 60,
-            httponly=True, samesite='lax', secure=request.url.scheme == 'https', path='/api/v1',
+            httponly=True, samesite='lax', secure=bool(settings.public_origin) or request.url.scheme == 'https', path='/api/v1',
         )
         return MessageResponse(message='Oturum açıldı.')
     return TokenResponse(

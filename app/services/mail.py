@@ -2,6 +2,9 @@
 from email.message import EmailMessage
 import smtplib
 import ssl
+import json
+from urllib.request import Request, urlopen
+from urllib.error import URLError
 from typing import Protocol
 
 from app.core.config import settings
@@ -53,5 +56,23 @@ class SMTPMailer:
             raise MailDeliveryError('Verification message could not be delivered') from exc
 
 
+class ResendMailer(SMTPMailer):
+    """Use HTTPS instead of SMTP on hosts that block mail ports."""
+
+    def _send(self, email: str, subject: str, body: str) -> None:
+        request = Request('https://api.resend.com/emails', method='POST',
+            headers={'Authorization': f'Bearer {settings.resend_api_key.get_secret_value()}',
+                     'Content-Type': 'application/json', 'User-Agent': 'HalicMind/0.2'},
+            data=json.dumps({'from': settings.mail_from, 'to': [email],
+                             'subject': f'{settings.application_name} — {subject}',
+                             'text': body}).encode('utf-8'))
+        try:
+            with urlopen(request, timeout=settings.smtp_timeout_seconds) as response:
+                if response.status != 200:
+                    raise MailDeliveryError('Email provider rejected the message')
+        except (OSError, URLError) as exc:
+            raise MailDeliveryError('Email could not be delivered') from exc
+
+
 def get_mailer() -> VerificationMailer:
-    return SMTPMailer()
+    return ResendMailer() if settings.mail_provider == 'resend' else SMTPMailer()

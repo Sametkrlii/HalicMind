@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: HalicMind
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt -c requirements.lock.txt
+    startCommand: python -m scripts.start_production
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_SCHEMA
+        value: halicmind
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: PUBLIC_ORIGIN
+        value: https://halicmind.onrender.com
+      - key: MAIL_PROVIDER
+        value: resend
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: EXAM_SYNC_ENABLED
+        value: false

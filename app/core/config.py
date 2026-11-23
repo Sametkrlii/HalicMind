@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     exam_sync_interval_seconds: int = Field(default=3600, ge=300, le=86400)
     exam_sync_ca_bundle: str | None = None
     database_url: str
+    database_schema: str | None = Field(default=None, pattern=r'^[a-z][a-z0-9_]{0,62}$')
+    public_origin: str | None = None
+    mail_provider: Literal['smtp', 'resend'] = 'smtp'
+    resend_api_key: SecretStr | None = None
+    mail_from: str | None = None
     jwt_secret_key: SecretStr = Field(min_length=32)
     access_token_expire_minutes: int = Field(default=30, ge=1, le=1440)
     email_verification_expire_minutes: int = Field(default=30, ge=1, le=1440)
@@ -28,6 +33,22 @@ class Settings(BaseSettings):
 
     @model_validator(mode='after')
     def validate_smtp(self):
+        if self.public_origin:
+            from urllib.parse import urlsplit
+            origin = urlsplit(self.public_origin)
+            if origin.scheme != 'https' or not origin.netloc or origin.path not in {'', '/'} or origin.query or origin.fragment or origin.username:
+                raise ValueError('PUBLIC_ORIGIN must be an HTTPS origin')
+            self.public_origin = self.public_origin.rstrip('/')
+        if self.database_url.startswith('postgresql://'):
+            self.database_url = self.database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+        if self.database_schema:
+            from sqlalchemy.engine import make_url
+            url = make_url(self.database_url)
+            options = url.query.get('options', '')
+            url = url.update_query_dict({'options': f'{options} -csearch_path={self.database_schema}'.strip()})
+            self.database_url = url.render_as_string(hide_password=False)
+        if self.mail_provider == 'resend' and (not self.resend_api_key or not self.mail_from):
+            raise ValueError('Resend requires RESEND_API_KEY and MAIL_FROM')
         if self.smtp_host not in {'127.0.0.1', 'localhost', '::1', 'mailpit'} and self.smtp_tls_mode == 'none':
             raise ValueError('Remote SMTP requires starttls or ssl')
         if self.smtp_username and not self.smtp_password:
